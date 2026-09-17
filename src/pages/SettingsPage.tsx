@@ -259,7 +259,7 @@ export const SettingsPage: React.FC = () => {
     setIsResetModalOpen(false);
     setBackupMessage({
       type: 'success',
-      text: 'Store data reset to official Kedai PAPA pilot seed records.',
+      text: 'Store data reset to official NiagaPOS pilot seed records.',
     });
     setTimeout(() => setBackupMessage(null), 4000);
   };
@@ -995,7 +995,7 @@ export const SettingsPage: React.FC = () => {
             Demo Data &amp; State Reset
           </h3>
           <p className="text-xs text-stone-500 max-w-md mt-0.5">
-            Reset all product records, inventory movements, sales, customers, and loyalty back to the initial Kedai PAPA pilot baseline.
+            Reset all product records, inventory movements, sales, customers, and loyalty back to the initial NiagaPOS pilot baseline.
           </p>
         </div>
 

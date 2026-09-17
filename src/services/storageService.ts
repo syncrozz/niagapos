@@ -27,19 +27,19 @@ export type { StoreBackupPayload };
 export const CURRENT_SCHEMA_VERSION = 1;
 
 export const STORAGE_KEYS = {
-  SCHEMA_VERSION: 'kedai_papa_schema_version',
-  STORE: 'kedai_papa_store_v1',
-  PRODUCTS: 'kedai_papa_products_v1',
-  MOVEMENTS: 'kedai_papa_movements_v1',
-  SALES: 'kedai_papa_sales_v1',
-  SUPPLIERS: 'kedai_papa_suppliers_v1',
-  PURCHASES: 'kedai_papa_purchases_v1',
-  CUSTOMERS: 'kedai_papa_customers_v1',
-  LOYALTY: 'kedai_papa_loyalty_v1',
-  STAFF: 'kedai_papa_staff_v1',
-  ACTIVE_CASHIER_ID: 'kedai_papa_active_cashier_id_v1',
-  PRE_SYNC_BACKUP: 'kedai_papa_pre_sync_backup_v1',
-  LAST_SYNC_METADATA: 'kedai_papa_last_sync_metadata_v1',
+  SCHEMA_VERSION: 'niagapos_v2_schema_version',
+  STORE: 'niagapos_v2_store_v1',
+  PRODUCTS: 'niagapos_v2_products_v1',
+  MOVEMENTS: 'niagapos_v2_movements_v1',
+  SALES: 'niagapos_v2_sales_v1',
+  SUPPLIERS: 'niagapos_v2_suppliers_v1',
+  PURCHASES: 'niagapos_v2_purchases_v1',
+  CUSTOMERS: 'niagapos_v2_customers_v1',
+  LOYALTY: 'niagapos_v2_loyalty_v1',
+  STAFF: 'niagapos_v2_staff_v1',
+  ACTIVE_CASHIER_ID: 'niagapos_v2_active_cashier_id_v1',
+  PRE_SYNC_BACKUP: 'niagapos_v2_pre_sync_backup_v1',
+  LAST_SYNC_METADATA: 'niagapos_v2_last_sync_metadata_v1',
 } as const;
 
 export interface ValidationResult {
@@ -234,7 +234,7 @@ export class StorageService {
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
-    const safeStoreCode = (payload.store.code || 'kedaipapa').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const safeStoreCode = (payload.store.code || 'niagapos').toLowerCase().replace(/[^a-z0-9]/g, '_');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
     const filename = `${safeStoreCode}_backup_${timestamp}.json`;
 
@@ -287,7 +287,7 @@ export class StorageService {
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('kedai_papa_')) {
+        if (key && (key.startsWith('niagapos_v2_') || key.startsWith('kedai_papa_'))) {
           const val = localStorage.getItem(key) || '';
           total += key.length + val.length;
         }

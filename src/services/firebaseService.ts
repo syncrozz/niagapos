@@ -27,7 +27,7 @@ import {
   Unsubscribe,
   serverTimestamp,
 } from 'firebase/firestore';
-import { firebaseConfig } from './firebaseConfig';
+import { firebaseConfig, isFirebaseConfigured } from './firebaseConfig';
 import {
   Store,
   Product,
@@ -73,7 +73,7 @@ function sanitize<T>(obj: T): T {
 function normalizeProduct(raw: any): Product {
   return {
     id: raw.id,
-    storeId: raw.storeId || 'store-kedai-papa-001',
+    storeId: raw.storeId || 'store-niagapos-v2-001',
     sku: raw.sku || `SKU-${raw.id}`,
     name: raw.name || 'Produk Tanpa Nama',
     category: raw.category || 'Lain-lain',
@@ -96,10 +96,17 @@ export class FirebaseService {
   private static statusListeners: ((status: CloudSyncStatus, lastSynced: Date | null) => void)[] = [];
   private static activeSubscriptions: Unsubscribe[] = [];
 
+  public static isConfigured(): boolean {
+    return isFirebaseConfigured();
+  }
+
   /**
    * Initializes Firebase app and Firestore instance
    */
-  public static getDb(): Firestore {
+  public static getDb(): Firestore | null {
+    if (!isFirebaseConfigured()) {
+      return null;
+    }
     if (!this.db) {
       if (!getApps().length) {
         this.app = initializeApp(firebaseConfig);
@@ -107,7 +114,7 @@ export class FirebaseService {
         this.app = getApp();
       }
 
-      if (firebaseConfig.firestoreDatabaseId) {
+      if (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)') {
         this.db = getFirestore(this.app, firebaseConfig.firestoreDatabaseId);
       } else {
         this.db = getFirestore(this.app);
@@ -144,14 +151,25 @@ export class FirebaseService {
    * Tests connection to Firestore on startup as mandated by skill guidelines
    */
   public static async testConnection(): Promise<boolean> {
+    if (!isFirebaseConfigured()) {
+      console.info(
+        '[NiagaPOS V2] Operating in isolated local mode. Dedicated NiagaPOS V2 Firebase configuration is pending.'
+      );
+      this.updateStatus('OFFLINE');
+      return false;
+    }
     try {
       const db = this.getDb();
+      if (!db) {
+        this.updateStatus('OFFLINE');
+        return false;
+      }
       const testDocRef = doc(db, 'system', 'connection_check');
       // Test server connection
       await setDoc(testDocRef, sanitize({
         status: 'online',
         testedAt: new Date().toISOString(),
-        client: 'Kedai PAPA POS Web',
+        client: 'NiagaPOS V2 Web',
         timestamp: serverTimestamp(),
       }));
       await getDocFromServer(testDocRef);
@@ -225,9 +243,29 @@ export class FirebaseService {
     loyaltyLedger: LoyaltyLedgerEntry[];
     staffUsers: StaffUser[];
   }> {
+    const emptyResult = {
+      store: null,
+      products: [],
+      movements: [],
+      sales: [],
+      suppliers: [],
+      purchases: [],
+      customers: [],
+      loyaltyLedger: [],
+      staffUsers: [],
+    };
+
+    if (!isFirebaseConfigured()) {
+      return emptyResult;
+    }
+
     try {
       this.updateStatus('SYNCING');
       const db = this.getDb();
+      if (!db) {
+        this.updateStatus('OFFLINE');
+        return emptyResult;
+      }
 
       const [
         storesSnap,
@@ -277,17 +315,7 @@ export class FirebaseService {
     } catch (err) {
       console.warn('fetchAllFromCloud error:', err);
       this.updateStatus('CONNECTED');
-      return {
-        store: null,
-        products: [],
-        movements: [],
-        sales: [],
-        suppliers: [],
-        purchases: [],
-        customers: [],
-        loyaltyLedger: [],
-        staffUsers: [],
-      };
+      return emptyResult;
     }
   }
 
@@ -296,8 +324,9 @@ export class FirebaseService {
   // -------------------------------------------------------------
 
   public static async syncStore(store: Store): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'stores', store.id), sanitize(store));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -306,8 +335,9 @@ export class FirebaseService {
   }
 
   public static async syncProduct(product: Product): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'products', product.id), sanitize(product));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -316,8 +346,9 @@ export class FirebaseService {
   }
 
   public static async syncProductsBatch(products: Product[]): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       // Firestore batches support up to 500 ops
       const chunkSize = 400;
       for (let i = 0; i < products.length; i += chunkSize) {
@@ -333,8 +364,9 @@ export class FirebaseService {
   }
 
   public static async deleteProduct(productId: string): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await deleteDoc(doc(db, 'products', productId));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -343,8 +375,9 @@ export class FirebaseService {
   }
 
   public static async syncMovement(movement: InventoryMovement): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'inventory_movements', movement.id), sanitize(movement));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -353,8 +386,9 @@ export class FirebaseService {
   }
 
   public static async syncMovementsBatch(movements: InventoryMovement[]): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       const chunkSize = 400;
       for (let i = 0; i < movements.length; i += chunkSize) {
         const chunk = movements.slice(i, i + chunkSize);
@@ -369,8 +403,9 @@ export class FirebaseService {
   }
 
   public static async syncSale(sale: Sale): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'sales', sale.id), sanitize(sale));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -379,8 +414,9 @@ export class FirebaseService {
   }
 
   public static async syncSupplier(supplier: Supplier): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'suppliers', supplier.id), sanitize(supplier));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -389,8 +425,9 @@ export class FirebaseService {
   }
 
   public static async deleteSupplier(supplierId: string): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await deleteDoc(doc(db, 'suppliers', supplierId));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -399,8 +436,9 @@ export class FirebaseService {
   }
 
   public static async syncPurchase(purchase: Purchase): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'purchases', purchase.id), sanitize(purchase));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -409,8 +447,9 @@ export class FirebaseService {
   }
 
   public static async syncCustomer(customer: Customer): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'customers', customer.id), sanitize(customer));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -419,8 +458,9 @@ export class FirebaseService {
   }
 
   public static async deleteCustomer(customerId: string): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await deleteDoc(doc(db, 'customers', customerId));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -429,8 +469,9 @@ export class FirebaseService {
   }
 
   public static async syncLoyaltyEntry(entry: LoyaltyLedgerEntry): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'loyalty_ledger', entry.id), sanitize(entry));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -439,8 +480,9 @@ export class FirebaseService {
   }
 
   public static async syncStaffUser(staff: StaffUser): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
     try {
-      const db = this.getDb();
       await setDoc(doc(db, 'staff_users', staff.id), sanitize(staff));
       this.updateStatus('CONNECTED');
     } catch (err) {
@@ -462,6 +504,7 @@ export class FirebaseService {
     loyaltyLedger: LoyaltyLedgerEntry[];
     staffUsers: StaffUser[];
   }): Promise<void> {
+    if (!isFirebaseConfigured() || !this.getDb()) return;
     try {
       this.updateStatus('SYNCING');
       await this.syncStore(data.store);
@@ -497,8 +540,10 @@ export class FirebaseService {
     loyaltyLedger: LoyaltyLedgerEntry[];
     staffUsers: StaffUser[];
   }): Promise<boolean> {
+    if (!isFirebaseConfigured()) return false;
+    const db = this.getDb();
+    if (!db) return false;
     try {
-      const db = this.getDb();
       const [
         storesSnap,
         productsSnap,
@@ -589,6 +634,14 @@ export class FirebaseService {
   }): () => void {
     // Clear previous active subscriptions if any
     this.unsubscribeAll();
+
+    if (!isFirebaseConfigured()) {
+      return () => {};
+    }
+    const db = this.getDb();
+    if (!db) {
+      return () => {};
+    }
 
     const localSubs: Unsubscribe[] = [];
 

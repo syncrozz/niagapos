@@ -144,11 +144,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const [store, setStore] = useState<Store>(() => {
-    return StorageService.safeParse<Store>(
+    const loaded = StorageService.safeParse<Store>(
       localStorage.getItem(STORAGE_KEYS.STORE),
       INITIAL_STORE,
       (val) => !!val && typeof val === 'object' && !Array.isArray(val) && !!(val as any).id
     );
+    if (loaded.name === 'NiagaPOS V2' || loaded.name === 'Kedai PAPA') {
+      const updated = { ...loaded, name: 'NiagaPOS' };
+      try {
+        localStorage.setItem(STORAGE_KEYS.STORE, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    }
+    return loaded;
   });
 
   // Current primary role: Admin / Store Owner (foundation ready for future roles)

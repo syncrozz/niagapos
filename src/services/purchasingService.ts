@@ -251,7 +251,7 @@ export class PurchasingService {
     purchase: Purchase,
     suppliersMap: Map<string, Supplier>,
     productsMap: Map<string, Product>,
-    storeId: string = 'store-kedai-papa-001'
+    storeId: string = 'store-niagapos-v2-001'
   ): CompletePurchaseResult {
     // 1. Duplicate completion protection
     if (purchase.status === 'COMPLETED') {

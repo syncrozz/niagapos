@@ -1,6 +1,6 @@
 {
-  "name": "Kedai PAPA POS",
-  "description": "Retail POS & Inventory Management System with purchasing, supplier management, inventory movement, sales, and gross profit tracking.",
+  "name": "NiagaPOS",
+  "description": "Retail POS & Inventory Management System for NiagaPOS with purchasing, supplier management, inventory movement, sales, and gross profit tracking.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

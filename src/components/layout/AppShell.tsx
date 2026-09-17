@@ -106,7 +106,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 id="header-branding-home-trigger"
                 role="button"
                 tabIndex={0}
-                aria-label="Kembali ke Dashboard Kedai PAPA"
+                aria-label="Kembali ke Dashboard NiagaPOS"
                 className="flex items-center gap-2 cursor-pointer hover:opacity-95 transition select-none group"
                 onClick={() => {
                   onNavigate('dashboard');
@@ -122,7 +122,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-white border border-stone-200/90 shadow-2xs group-hover:scale-105 transition-transform flex items-center justify-center p-0.5 shrink-0">
                   <img
                     src={KEDAI_PAPA_ASSETS.logoSvg}
-                    alt="Kedai PAPA Logo"
+                    alt="NiagaPOS Logo"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
                     }}
@@ -132,7 +132,18 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-stone-900 tracking-tight text-sm sm:text-base leading-tight">
-                      {store.name}
+                      {store.name.includes('POS') ? (
+                        <>
+                          {store.name.split('POS').map((part, index, array) => (
+                            <React.Fragment key={index}>
+                              {part}
+                              {index < array.length - 1 && <span className="text-red-600">POS</span>}
+                            </React.Fragment>
+                          ))}
+                        </>
+                      ) : (
+                        store.name
+                      )}
                     </span>
                   </div>
                 </div>
@@ -389,7 +400,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             </button>
 
             <div className="text-stone-400 text-[11px]">
-              &copy; {new Date().getFullYear()} Kedai PAPA
+              &copy; {new Date().getFullYear()} Niaga<span className="text-red-500 font-medium">POS</span>
             </div>
           </div>
         </div>

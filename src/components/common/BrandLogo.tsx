@@ -25,7 +25,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   className = '',
   imgClassName = '',
   showText = false,
-  textTitle = 'Kedai PAPA',
+  textTitle = 'NiagaPOS',
   textSubtitle,
 }) => {
   const [hasError, setHasError] = useState(false);
@@ -39,7 +39,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       >
         <img
           src={hasError ? fallbackSrc : primarySrc}
-          alt="Kedai PAPA"
+          alt={textTitle}
           onError={() => setHasError(true)}
           className={`w-full h-full object-contain ${imgClassName}`}
           loading="eager"
@@ -49,7 +49,18 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       {showText && (
         <div className="flex flex-col leading-tight">
           <span className="font-bold text-stone-900 tracking-tight text-sm sm:text-base">
-            {textTitle}
+            {textTitle.includes('POS') ? (
+              <>
+                {textTitle.split('POS').map((part, index, array) => (
+                  <React.Fragment key={index}>
+                    {part}
+                    {index < array.length - 1 && <span className="text-red-600">POS</span>}
+                  </React.Fragment>
+                ))}
+              </>
+            ) : (
+              textTitle
+            )}
           </span>
           {textSubtitle && (
             <span className="text-[11px] text-stone-500 font-medium">

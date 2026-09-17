@@ -135,7 +135,7 @@ export class CsvService {
     ]);
 
     const dateStr = new Date().toISOString().slice(0, 10);
-    this.downloadCsv(`kedai_papa_products_${dateStr}.csv`, headers, rows);
+    this.downloadCsv(`niagapos_v2_products_${dateStr}.csv`, headers, rows);
   }
 
   /**
@@ -163,7 +163,7 @@ export class CsvService {
     ]);
 
     const dateStr = new Date().toISOString().slice(0, 10);
-    this.downloadCsv(`kedai_papa_suppliers_${dateStr}.csv`, headers, rows);
+    this.downloadCsv(`niagapos_v2_suppliers_${dateStr}.csv`, headers, rows);
   }
 
   /**
@@ -200,7 +200,7 @@ export class CsvService {
     });
 
     const dateStr = new Date().toISOString().slice(0, 10);
-    this.downloadCsv(`kedai_papa_customers_${dateStr}.csv`, headers, rows);
+    this.downloadCsv(`niagapos_v2_customers_${dateStr}.csv`, headers, rows);
   }
 
   /**

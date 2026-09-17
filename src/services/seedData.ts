@@ -6,14 +6,14 @@
 import { Store, Product, InventoryMovement, Sale, SaleItem, Supplier, Purchase, Customer, LoyaltyLedgerEntry, StaffUser } from '../types';
 
 export const INITIAL_STORE: Store = {
-  id: 'store-kedai-papa-001',
-  name: 'Kedai PAPA',
-  code: 'KP-01',
+  id: 'store-niagapos-v2-001',
+  name: 'NiagaPOS',
+  code: 'NP-01',
   currency: 'RM',
-  tagline: 'Kedai Runcit Kejiranan Anda',
+  tagline: 'Sistem POS & Inventori NiagaPOS',
   address: 'No. 12, Jalan Komuniti 3, Bandar Baru Bangi, Selangor',
   phone: '+60 12-345 6789',
-  receiptFooter: 'Terima kasih atas sokongan anda kepada Kedai PAPA!',
+  receiptFooter: 'Terima kasih atas urusan anda bersama NiagaPOS!',
   settings: {
     enableCustomerManagement: true,
     enableLoyalty: true,

@@ -57,7 +57,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white p-1.5 shadow-sm border border-white/40 flex items-center justify-center shrink-0">
             <img
               src={KEDAI_PAPA_ASSETS.logoSvg}
-              alt="Kedai PAPA"
+              alt="NiagaPOS"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
               }}
@@ -70,7 +70,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <span>{store.name} • Pusat Kawalan Peruncitan</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              Selamat Datang ke Kedai PAPA
+              Selamat Datang ke Niaga<span className="text-red-400">POS</span>
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
               Sistem pengurusan kedai runcit yang mudah, fleksibel dan lengkap. Pantau jualan harian, baki inventori, dan transaksi secara masa nyata.
