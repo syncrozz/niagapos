@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KEDAI_PAPA_ASSETS } from '../../constants/branding';
+import { NIAGAPOS_ASSETS } from '../../constants/branding';
 
 interface BrandLogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -29,8 +29,8 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   textSubtitle,
 }) => {
   const [hasError, setHasError] = useState(false);
-  const primarySrc = variant === 'logo' ? KEDAI_PAPA_ASSETS.logoSvg : KEDAI_PAPA_ASSETS.icon192;
-  const fallbackSrc = KEDAI_PAPA_ASSETS.local.logoSvg;
+  const primarySrc = variant === 'logo' ? NIAGAPOS_ASSETS.logoSvg : NIAGAPOS_ASSETS.icon192;
+  const fallbackSrc = NIAGAPOS_ASSETS.local.logoSvg;
 
   return (
     <div className={`inline-flex items-center gap-2.5 ${className}`}>

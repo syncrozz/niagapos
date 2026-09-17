@@ -23,7 +23,7 @@ import { ActivePage, Product } from '../types';
 import { ReportingService } from '../services/reportingService';
 import { InventoryService } from '../services/inventoryService';
 import { formatProfit, getProfitColorClass } from '../services/formatters';
-import { KEDAI_PAPA_ASSETS } from '../constants/branding';
+import { NIAGAPOS_ASSETS } from '../constants/branding';
 
 interface DashboardPageProps {
   onNavigate: (page: ActivePage) => void;
@@ -56,10 +56,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         <div className="relative z-10 flex items-start gap-4 max-w-xl">
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white p-1.5 shadow-sm border border-white/40 flex items-center justify-center shrink-0">
             <img
-              src={KEDAI_PAPA_ASSETS.logoSvg}
+              src={NIAGAPOS_ASSETS.logoSvg}
               alt="NiagaPOS"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
+                (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
               }}
               className="w-full h-full object-contain"
             />

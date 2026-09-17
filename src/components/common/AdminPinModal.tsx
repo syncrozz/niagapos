@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, AlertCircle, X, KeyRound } from 'lucide-react';
 import { AdminAuthService } from '../../services/adminAuthService';
-import { KEDAI_PAPA_ASSETS } from '../../constants/branding';
+import { NIAGAPOS_ASSETS } from '../../constants/branding';
 
 interface AdminPinModalProps {
   isOpen: boolean;
@@ -106,17 +106,17 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-white border border-stone-200/90 shadow-2xs flex items-center justify-center p-1 shrink-0">
               <img
-                src={KEDAI_PAPA_ASSETS.logoSvg}
-                alt="Kedai PAPA"
+                src={NIAGAPOS_ASSETS.logoSvg}
+                alt="NiagaPOS"
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
+                  (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
                 }}
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
               <h3 id="admin-pin-modal-title" className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                <span>Mod Pentadbir Kedai PAPA</span>
+                <span>Mod Pentadbir NiagaPOS</span>
               </h3>
               {actionDescription ? (
                 <p className="text-[11px] text-stone-500 line-clamp-1">{actionDescription}</p>

@@ -28,7 +28,8 @@ import {
 import { useStore } from '../context/StoreContext';
 import { UserRole, StaffRole, StaffUser } from '../types';
 import { VerificationAuditSuite } from '../components/verification/VerificationAuditSuite';
-import { KEDAI_PAPA_ASSETS } from '../constants/branding';
+import { NIAGAPOS_ASSETS } from '../constants/branding';
+import { PWAInstallButton } from '../components/common/PWAInstallButton';
 import { StaffService } from '../services/staffService';
 import { StorageService, StoreBackupPayload } from '../services/storageService';
 
@@ -325,6 +326,9 @@ export const SettingsPage: React.FC = () => {
           Configure store profile parameters, optional retail modules, staff directory, and system verification.
         </p>
       </div>
+
+      {/* PWA & System Installation Card */}
+      <PWAInstallButton variant="card" />
 
       {/* Store Profile Card */}
       <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-xs">

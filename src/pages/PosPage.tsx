@@ -33,7 +33,7 @@ import { Modal } from '../components/common/Modal';
 import { CustomerService } from '../services/customerService';
 import { LoyaltyService } from '../services/loyaltyService';
 import { SalesService } from '../services/salesService';
-import { KEDAI_PAPA_ASSETS } from '../constants/branding';
+import { NIAGAPOS_ASSETS } from '../constants/branding';
 import { InventoryService } from '../services/inventoryService';
 import { StaffService, STORE_OWNER_ID, STORE_OWNER_NAME } from '../services/staffService';
 import { STORAGE_KEYS } from '../services/storageService';
@@ -852,10 +852,10 @@ export const PosPage: React.FC = () => {
                         ) : (
                           <div className={`w-full h-full rounded-lg flex flex-col items-center justify-center p-2 ${pastel.cardBg}`}>
                             <img
-                              src={KEDAI_PAPA_ASSETS.logoSvg}
+                              src={NIAGAPOS_ASSETS.logoSvg}
                               alt="NiagaPOS"
                               onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
+                                (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
                               }}
                               className="w-8 h-8 object-contain opacity-60"
                             />

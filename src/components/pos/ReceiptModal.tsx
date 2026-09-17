@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Printer, CheckCircle, Store as StoreIcon, ShieldCheck, Tag, Info } from 'lucide-react';
 import { Sale, Store } from '../../types';
 import { Modal } from '../common/Modal';
-import { KEDAI_PAPA_ASSETS } from '../../constants/branding';
+import { NIAGAPOS_ASSETS } from '../../constants/branding';
 
 interface ReceiptModalProps {
   isOpen: boolean;
@@ -49,10 +49,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           <div className="text-center pb-3 border-b border-dashed border-stone-300">
             <div className="flex items-center justify-center gap-2 font-black text-lg text-stone-900 tracking-tight uppercase">
               <img
-                src={KEDAI_PAPA_ASSETS.logoSvg}
-                alt="Kedai PAPA"
+                src={NIAGAPOS_ASSETS.logoSvg}
+                alt="NiagaPOS"
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
+                  (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
                 }}
                 className="w-5 h-5 object-contain rounded-xs shrink-0"
               />

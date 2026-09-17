@@ -23,7 +23,8 @@ import {
 import { ActivePage } from '../../types';
 import { useStore } from '../../context/StoreContext';
 import { SupportModal } from '../common/SupportModal';
-import { KEDAI_PAPA_ASSETS } from '../../constants/branding';
+import { NIAGAPOS_ASSETS } from '../../constants/branding';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface AppShellProps {
   activePage: ActivePage;
@@ -121,10 +122,10 @@ export const AppShell: React.FC<AppShellProps> = ({
               >
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-white border border-stone-200/90 shadow-2xs group-hover:scale-105 transition-transform flex items-center justify-center p-0.5 shrink-0">
                   <img
-                    src={KEDAI_PAPA_ASSETS.logoSvg}
+                    src={NIAGAPOS_ASSETS.logoSvg}
                     alt="NiagaPOS Logo"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
+                      (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
                     }}
                     className="w-full h-full object-contain"
                   />
@@ -215,6 +216,9 @@ export const AppShell: React.FC<AppShellProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* PWA Install Action */}
+              <PWAInstallButton variant="header" />
 
               {/* Master Admin Console Direct Access */}
               <button
@@ -337,6 +341,9 @@ export const AppShell: React.FC<AppShellProps> = ({
                   </>
                 )}
               </button>
+              <div className="pt-2">
+                <PWAInstallButton variant="sidebar" />
+              </div>
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
