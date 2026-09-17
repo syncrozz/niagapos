@@ -182,17 +182,17 @@ export class SecurityVerificationRunner {
 
       results.push({
         id: 'SEC-TEST-05',
-        title: 'Kedai PAPA V1 Decoupling & Quarantine',
+        title: 'NiagaPOS V1 Decoupling & Quarantine',
         category: 'ISOLATION',
         status: isV1Blocked ? 'PASSED' : 'FAILED',
-        expected: 'All attempts to access or bind Kedai PAPA V1 project must be blocked',
+        expected: 'All attempts to access or bind NiagaPOS V1 project must be blocked',
         actual: 'Decoupled and verified zero active V1 connection',
         details: 'Guarantees absolute data segregation between legacy store and NiagaPOS V2 workspaces.',
       });
     } catch (e: any) {
       results.push({
         id: 'SEC-TEST-05',
-        title: 'Kedai PAPA V1 Decoupling & Quarantine',
+        title: 'NiagaPOS V1 Decoupling & Quarantine',
         category: 'ISOLATION',
         status: 'FAILED',
         expected: 'V1 Blocked',

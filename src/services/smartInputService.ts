@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Smart Form Standard Service
+ * NiagaPOS - Smart Form Standard Service
  * SYNCROZZ Engineering Standard (SES) v4.4 Locked
  *
  * "USER MASUKKAN DATA, SISTEM URUSKAN FORMAT."

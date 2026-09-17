@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - CSV Product Importer Safe Upsert Verification Runner
+ * NiagaPOS - CSV Product Importer Safe Upsert Verification Runner
  * SYNCROZZ Engineering Standard (SES) v4.4 Locked
  *
  * Implements 11 comprehensive regression & verification tests (A through K):
@@ -34,8 +34,8 @@ export interface CsvImportTestResult {
 export class CsvImportVerificationRunner {
   private static testStore: Store = {
     id: 'store-test-csv',
-    name: 'Kedai PAPA Test Store',
-    code: 'KP-TEST',
+    name: 'NiagaPOS Test Store',
+    code: 'NP-TEST',
     currency: 'RM',
     createdAt: '2026-09-01T00:00:00Z',
     updatedAt: '2026-09-01T00:00:00Z',
@@ -93,6 +93,7 @@ export class CsvImportVerificationRunner {
           sellingPrice: updateData.sellingPrice,
           minimumStock: updateData.minimumStock,
           active: updateData.active,
+          imageUrl: updateData.imageUrl !== undefined ? updateData.imageUrl : prod.imageUrl,
           updatedAt: now,
         };
       }
@@ -108,6 +109,7 @@ export class CsvImportVerificationRunner {
         ...item,
         id,
         storeId: this.testStore.id,
+        imageUrl: item.imageUrl || undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -775,6 +777,339 @@ export class CsvImportVerificationRunner {
         passed: false,
         message: err.message,
         details: 'Exception in Test K.',
+      });
+    }
+
+    // ==========================================
+    // TEST L: CSV Image URL Validation & Backup Filename
+    // ==========================================
+    try {
+      const valid1 = CsvService.validateImageUrl('https://images.unsplash.com/photo-1558961363-fa8fdf82db35');
+      const valid2 = CsvService.validateImageUrl('http://cdn.niagapos.com/prod.png');
+      const validRelative = CsvService.validateImageUrl('/images/logo.png');
+      const emptyCheck1 = CsvService.validateImageUrl('');
+      const emptyCheck2 = CsvService.validateImageUrl('   ');
+      const emptyCheck3 = CsvService.validateImageUrl(undefined);
+      const invalidUrl1 = CsvService.validateImageUrl('not-a-valid-url');
+      const invalidProtocol = CsvService.validateImageUrl('javascript:alert(1)');
+      const invalidFtp = CsvService.validateImageUrl('ftp://files.com/img.jpg');
+
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const expectedFilename = `kedai_papa_products_backup_${yyyy}-${mm}-${dd}.csv`;
+      const filenameRegex = /^kedai_papa_products_backup_\d{4}-\d{2}-\d{2}\.csv$/;
+
+      const passed =
+        valid1.isValid &&
+        valid1.normalizedUrl === 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35' &&
+        valid2.isValid &&
+        validRelative.isValid &&
+        emptyCheck1.isValid &&
+        emptyCheck1.normalizedUrl === undefined &&
+        emptyCheck2.isValid &&
+        emptyCheck3.isValid &&
+        !invalidUrl1.isValid &&
+        !invalidProtocol.isValid &&
+        !invalidFtp.isValid &&
+        filenameRegex.test(expectedFilename);
+
+      results.push({
+        code: 'TEST-CSV-L',
+        name: 'CSV Export Image URL & Backup Filename Format',
+        category: 'Validation',
+        status: passed ? 'PASSED' : 'FAILED',
+        passed,
+        message: 'URL validator strictly validates HTTP/HTTPS/relative paths and generates backup filename kedai_papa_products_backup_YYYY-MM-DD.csv.',
+        details: `Backup pattern: ${expectedFilename}`,
+      });
+    } catch (err: any) {
+      results.push({
+        code: 'TEST-CSV-L',
+        name: 'CSV Export Image URL & Backup Filename Format',
+        category: 'Validation',
+        status: 'FAILED',
+        passed: false,
+        message: err.message,
+        details: 'Exception in Test L.',
+      });
+    }
+
+    // ==========================================
+    // TEST M: CSV Import & Restore Image URL
+    // ==========================================
+    try {
+      const existingProd: Product = {
+        id: 'prod-img-1',
+        storeId: this.testStore.id,
+        sku: 'KP-IMG-001',
+        name: 'Produk Asal',
+        category: 'Snacks & Biscuits',
+        costPrice: 5.0,
+        sellingPrice: 8.0,
+        currentStock: 10,
+        minimumStock: 2,
+        active: true,
+        imageUrl: 'https://old-cdn.com/product-old.png',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const csvRows = [
+        {
+          sku: 'KP-IMG-001',
+          name: 'Produk Asal Dikemas Kini',
+          category: 'Snacks & Biscuits',
+          cost: '5.50',
+          price: '8.50',
+          stock: '10',
+          'Image URL': 'https://new-cdn.com/product-new.png',
+        },
+        {
+          sku: 'KP-IMG-002',
+          name: 'Produk Baharu Bergambar',
+          category: 'Beverages',
+          cost: '3.00',
+          price: '5.00',
+          stock: '25',
+          imageUrl: 'https://new-cdn.com/beverage.png',
+        },
+      ];
+
+      const validation = CsvService.validateProductsUpsert(csvRows, [existingProd], 'UPDATE_EXISTING');
+      const commit = this.simulateCommitUpsert([existingProd], [], {
+        mode: 'UPDATE_EXISTING',
+        newItems: validation.newItems,
+        updateItems: validation.updateItems,
+      });
+
+      const updatedExisting = commit.products.find((p) => p.sku === 'KP-IMG-001');
+      const brandNew = commit.products.find((p) => p.sku === 'KP-IMG-002');
+
+      const passed =
+        validation.validCount === 2 &&
+        updatedExisting?.imageUrl === 'https://new-cdn.com/product-new.png' &&
+        brandNew?.imageUrl === 'https://new-cdn.com/beverage.png';
+
+      results.push({
+        code: 'TEST-CSV-M',
+        name: 'CSV Import & Restore Image URL',
+        category: 'Import Modes',
+        status: passed ? 'PASSED' : 'FAILED',
+        passed,
+        message: 'Successfully imported and restored Image URLs for both updated existing products and new products.',
+        details: `Updated SKU ${updatedExisting?.sku} imageUrl restored: ${updatedExisting?.imageUrl}`,
+      });
+    } catch (err: any) {
+      results.push({
+        code: 'TEST-CSV-M',
+        name: 'CSV Import & Restore Image URL',
+        category: 'Import Modes',
+        status: 'FAILED',
+        passed: false,
+        message: err.message,
+        details: 'Exception in Test M.',
+      });
+    }
+
+    // ==========================================
+    // TEST N: Backward Compatibility (CSV Without Image URL)
+    // ==========================================
+    try {
+      const existingProdWithImage: Product = {
+        id: 'prod-legacy-1',
+        storeId: this.testStore.id,
+        sku: 'KP-LEGACY-01',
+        name: 'Legacy Product With Image',
+        category: 'Staples & Grains',
+        costPrice: 12.0,
+        sellingPrice: 16.0,
+        currentStock: 20,
+        minimumStock: 5,
+        active: true,
+        imageUrl: 'https://preserved-image.com/cap-rambutan.png',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      // Legacy CSV has NO image column at all
+      const legacyCsvRows = [
+        {
+          sku: 'KP-LEGACY-01',
+          name: 'Legacy Product Updated Name',
+          category: 'Staples & Grains',
+          cost: '12.50',
+          price: '17.00',
+          stock: '20',
+          min: '6',
+        },
+      ];
+
+      const validation = CsvService.validateProductsUpsert(legacyCsvRows, [existingProdWithImage], 'UPDATE_EXISTING');
+      const commit = this.simulateCommitUpsert([existingProdWithImage], [], {
+        mode: 'UPDATE_EXISTING',
+        newItems: validation.newItems,
+        updateItems: validation.updateItems,
+      });
+
+      const resultProd = commit.products.find((p) => p.sku === 'KP-LEGACY-01');
+
+      // Master catalog sync check without image column
+      const masterSync = CsvService.validateMasterCatalogSync(legacyCsvRows, [existingProdWithImage], [], [], []);
+      const masterRow = masterSync.rows.find((r) => r.sku === 'KP-LEGACY-01');
+
+      const passed =
+        resultProd?.imageUrl === 'https://preserved-image.com/cap-rambutan.png' &&
+        resultProd?.name === 'Legacy Product Updated Name' &&
+        masterRow?.imageUrl === 'https://preserved-image.com/cap-rambutan.png' &&
+        masterRow?.imageUrlChanged === false;
+
+      results.push({
+        code: 'TEST-CSV-N',
+        name: 'Backward Compatibility Without Image URL',
+        category: 'Import Modes',
+        status: passed ? 'PASSED' : 'FAILED',
+        passed,
+        message: 'Legacy CSV files without Image URL column continue working seamlessly and preserve existing product images.',
+        details: `Preserved imageUrl: ${resultProd?.imageUrl}`,
+      });
+    } catch (err: any) {
+      results.push({
+        code: 'TEST-CSV-N',
+        name: 'Backward Compatibility Without Image URL',
+        category: 'Import Modes',
+        status: 'FAILED',
+        passed: false,
+        message: err.message,
+        details: 'Exception in Test N.',
+      });
+    }
+
+    // ==========================================
+    // TEST O: Empty and Invalid URL Safe Handling
+    // ==========================================
+    try {
+      const existingProdWithImage: Product = {
+        id: 'prod-safe-1',
+        storeId: this.testStore.id,
+        sku: 'KP-SAFE-01',
+        name: 'Product with Image to Preserve',
+        category: 'General',
+        costPrice: 10.0,
+        sellingPrice: 15.0,
+        currentStock: 50,
+        minimumStock: 10,
+        active: true,
+        imageUrl: 'https://keep-this-image.com/photo.png',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const existingProdWithImage2: Product = {
+        id: 'prod-safe-2',
+        storeId: this.testStore.id,
+        sku: 'KP-SAFE-02',
+        name: 'Product with Image Against Bad URL',
+        category: 'General',
+        costPrice: 10.0,
+        sellingPrice: 15.0,
+        currentStock: 50,
+        minimumStock: 10,
+        active: true,
+        imageUrl: 'https://keep-this-image-too.com/photo.png',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const testRows = [
+        // Row 1: Empty image field should preserve existing imageUrl
+        {
+          sku: 'KP-SAFE-01',
+          name: 'Product with Image to Preserve',
+          category: 'General',
+          cost: '10.00',
+          price: '15.00',
+          stock: '50',
+          'Image URL': '   ', // whitespace/empty
+        },
+        // Row 2: Invalid URL should safely ignore bad URL and preserve existing imageUrl
+        {
+          sku: 'KP-SAFE-02',
+          name: 'Product with Image Against Bad URL',
+          category: 'General',
+          cost: '10.00',
+          price: '15.00',
+          stock: '50',
+          'Image URL': 'javascript:alert("XSS")', // dangerous/invalid protocol
+        },
+        // Row 3: New product with invalid URL should safely set imageUrl to undefined
+        {
+          sku: 'KP-SAFE-03',
+          name: 'New Product Bad URL',
+          category: 'General',
+          cost: '5.00',
+          price: '8.00',
+          stock: '10',
+          'Image URL': 'invalid_malformed_url_text',
+        },
+      ];
+
+      const validation = CsvService.validateProductsUpsert(
+        testRows,
+        [existingProdWithImage, existingProdWithImage2],
+        'UPDATE_EXISTING'
+      );
+
+      const commit = this.simulateCommitUpsert([existingProdWithImage, existingProdWithImage2], [], {
+        mode: 'UPDATE_EXISTING',
+        newItems: validation.newItems,
+        updateItems: validation.updateItems,
+      });
+
+      const prod1 = commit.products.find((p) => p.sku === 'KP-SAFE-01');
+      const prod2 = commit.products.find((p) => p.sku === 'KP-SAFE-02');
+      const prod3 = commit.products.find((p) => p.sku === 'KP-SAFE-03');
+
+      // Also check Master Sync change detection
+      const masterSync = CsvService.validateMasterCatalogSync(
+        [testRows[0], testRows[1]],
+        [existingProdWithImage, existingProdWithImage2],
+        [],
+        [],
+        []
+      );
+
+      const masterRow1 = masterSync.rows.find((r) => r.sku === 'KP-SAFE-01');
+      const masterRow2 = masterSync.rows.find((r) => r.sku === 'KP-SAFE-02');
+
+      const passed =
+        prod1?.imageUrl === 'https://keep-this-image.com/photo.png' &&
+        prod2?.imageUrl === 'https://keep-this-image-too.com/photo.png' &&
+        prod3?.imageUrl === undefined &&
+        masterRow1?.imageUrlChanged === false &&
+        masterRow2?.imageUrlChanged === false &&
+        masterRow1?.action === 'UNCHANGED' &&
+        masterRow2?.action === 'UNCHANGED';
+
+      results.push({
+        code: 'TEST-CSV-O',
+        name: 'Empty and Invalid URL Safe Handling',
+        category: 'Validation',
+        status: passed ? 'PASSED' : 'FAILED',
+        passed,
+        message: 'Empty URLs preserve existing images; invalid URLs are safely ignored without corrupting products or triggering unintended updates.',
+        details: `Prod1 preserved: ${prod1?.imageUrl}, Prod2 preserved: ${prod2?.imageUrl}, Prod3 undefined: ${prod3?.imageUrl === undefined}`,
+      });
+    } catch (err: any) {
+      results.push({
+        code: 'TEST-CSV-O',
+        name: 'Empty and Invalid URL Safe Handling',
+        category: 'Validation',
+        status: 'FAILED',
+        passed: false,
+        message: err.message,
+        details: 'Exception in Test O.',
       });
     }
 

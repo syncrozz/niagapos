@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Loyalty & Rewards Domain Service
+ * NiagaPOS - Loyalty & Rewards Domain Service
  * Part 07: Optional Retail Modules - Loyalty Ledger & Rewards
  *
  * Rules:

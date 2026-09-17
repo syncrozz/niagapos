@@ -493,8 +493,19 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                   Klik atau seret fail CSV katalog ke sini
                 </p>
                 <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto">
-                  Format standard: SKU, Name, Category, Cost Price, Selling Price, Current Stock, Minimum Stock, Status
+                  Format standard: SKU, Name, Category, Cost Price, Selling Price, Current Stock, Minimum Stock, Status, Image URL (Pilihan)
                 </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    CsvService.downloadProductsCsvTemplate();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Muat Turun Templat CSV Produk</span>
+                </button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -507,7 +518,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
               <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-lg text-xs text-emerald-950 space-y-1.5">
                 <div className="font-semibold flex items-center gap-1.5 text-emerald-800">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Sistem Penyelarasan Master Catalog Kedai PAPA</span>
+                  <span>Sistem Penyelarasan Master Catalog NiagaPOS</span>
                 </div>
                 <p className="text-[11px] text-emerald-800 leading-relaxed">
                   Fail CSV yang dimuat naik akan dianggap sebagai data katalog master semasa. Produk sedia ada akan dikemas kini dan diselaraskan stoknya melalui rekod lejar ADJUSTMENT rasmi. Produk baru akan didaftarkan, manakala semua sejarah jualan lepas kekal 100% terlindung.
@@ -879,8 +890,22 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                                 {row.sku}
                               </td>
                               <td className="p-2">
-                                <div className="font-medium text-stone-900">{row.name}</div>
-                                <div className="text-[10px] text-stone-500">{row.category}</div>
+                                <div className="flex items-center gap-2">
+                                  {row.imageUrl ? (
+                                    <img
+                                      src={row.imageUrl}
+                                      alt=""
+                                      className="w-7 h-7 object-cover rounded border border-stone-200 shrink-0"
+                                      onError={(e) => {
+                                        (e.currentTarget as HTMLElement).style.display = 'none';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div>
+                                    <div className="font-medium text-stone-900">{row.name}</div>
+                                    <div className="text-[10px] text-stone-500">{row.category}</div>
+                                  </div>
+                                </div>
                               </td>
                               <td className="p-2 text-right whitespace-nowrap text-[11px]">
                                 <span className={row.costChanged ? 'font-bold text-amber-700' : 'text-stone-600'}>
@@ -1170,8 +1195,22 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                                   {row.sku}
                                 </td>
                                 <td className="p-2">
-                                  <div className="font-medium text-stone-900">{row.name}</div>
-                                  <div className="text-[10px] text-stone-500">{row.category}</div>
+                                  <div className="flex items-center gap-2">
+                                    {row.imageUrl ? (
+                                      <img
+                                        src={row.imageUrl}
+                                        alt=""
+                                        className="w-7 h-7 object-cover rounded border border-stone-200 shrink-0"
+                                        onError={(e) => {
+                                          (e.currentTarget as HTMLElement).style.display = 'none';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div>
+                                      <div className="font-medium text-stone-900">{row.name}</div>
+                                      <div className="text-[10px] text-stone-500">{row.category}</div>
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="p-2 text-right whitespace-nowrap text-[11px]">
                                   <span className="text-stone-500">RM {row.costPrice.toFixed(2)}</span>

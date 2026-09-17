@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Duplicate Audit Service
+ * NiagaPOS - Duplicate Audit Service
  * SYNCROZZ Engineering Standard (SES) v4.4 Locked
  *
  * Core Principle:

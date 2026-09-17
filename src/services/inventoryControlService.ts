@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Advanced Inventory Control & Analysis Domain Service
+ * NiagaPOS - Advanced Inventory Control & Analysis Domain Service
  * Part 06: Advanced Inventory + Reporting
  * 
  * Core Principles:

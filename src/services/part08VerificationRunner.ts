@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 08 Verification Runner
+ * NiagaPOS - Part 08 Verification Runner
  * Production Hardening & Release Readiness Audit
  *
  * Covers 33 total hardening & regression tests (A through Z, plus AA through AG).

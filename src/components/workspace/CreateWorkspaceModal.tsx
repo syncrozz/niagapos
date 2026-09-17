@@ -411,7 +411,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
               <div className="p-3 rounded-xl bg-stone-950/80 border border-stone-800 text-[11px] text-stone-400 flex items-start gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <span>
-                  Workspace baharu akan dicipta dengan pengasingan data 100%, pangkalan data berasingan, dan peranan <strong className="text-stone-200">OWNER</strong> disahkan. Tiada percampuran dengan data Kedai PAPA V1.
+                  Workspace baharu akan dicipta dengan pengasingan data 100%, pangkalan data berasingan, dan peranan <strong className="text-stone-200">OWNER</strong> disahkan. Tiada percampuran dengan data NiagaPOS V1.
                 </span>
               </div>
             </form>

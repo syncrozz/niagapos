@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Store Context & State Management
+ * NiagaPOS - Store Context & State Management
  * Part 01: Foundation & Application Architecture
  */
 
@@ -778,6 +778,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           sellingPrice: updateData.sellingPrice,
           minimumStock: updateData.minimumStock,
           active: updateData.active,
+          imageUrl: updateData.imageUrl !== undefined ? updateData.imageUrl : prod.imageUrl,
           updatedAt: now,
           // Note: currentStock is strictly preserved from prod.currentStock!
           // Note: id is strictly preserved from prod.id!
@@ -796,6 +797,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...item,
         id,
         storeId: store.id,
+        imageUrl: item.imageUrl || undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -978,6 +980,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           minimumStock: csvRow.minimumStock,
           currentStock: targetStock,
           active: csvRow.active,
+          imageUrl: csvRow.imageUrl !== undefined ? csvRow.imageUrl : prod.imageUrl,
           updatedAt: now,
         });
       } else {
@@ -1016,6 +1019,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentStock: r.csvStock,
         minimumStock: r.minimumStock,
         active: r.active,
+        imageUrl: r.imageUrl || undefined,
         createdAt: now,
         updatedAt: now,
       };

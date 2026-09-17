@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Customer Domain Service
+ * NiagaPOS - Customer Domain Service
  * Part 07: Optional Retail Modules - Customer Management & History
  *
  * Rules:

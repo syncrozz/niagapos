@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Reusable CSV Export & Import Service
+ * NiagaPOS - Reusable CSV Export & Import Service
  * SYNCROZZ Engineering Standard (SES) v4.4 Locked
  *
  * Requirements:
@@ -52,6 +52,7 @@ export interface CsvProductImportRow {
   csvStock: number;
   minimumStock: number;
   active: boolean;
+  imageUrl?: string;
   reason: string;
   stockNote: string;
   existingProductId?: string;
@@ -109,9 +110,51 @@ export class CsvService {
   }
 
   /**
-   * Exports Products catalogue to CSV.
+   * Validates and normalizes product Image URL format.
+   * - Empty string, null, or undefined: valid, resolves to undefined (preserves existing).
+   * - Valid HTTP/HTTPS, relative paths (/), or data:image/ URIs: valid, returns normalized URL string.
+   * - Invalid formats (non-URL strings, unsupported protocols e.g. javascript:, ftp:): invalid.
    */
-  public static exportProducts(products: Product[]): void {
+  public static validateImageUrl(rawUrl: string | null | undefined): {
+    isValid: boolean;
+    normalizedUrl?: string;
+    error?: string;
+  } {
+    if (rawUrl === null || rawUrl === undefined) {
+      return { isValid: true, normalizedUrl: undefined };
+    }
+    const trimmed = String(rawUrl).trim();
+    if (trimmed === '') {
+      return { isValid: true, normalizedUrl: undefined };
+    }
+
+    // Relative web paths or data URIs
+    if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('data:image/')) {
+      return { isValid: true, normalizedUrl: trimmed };
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return { isValid: true, normalizedUrl: trimmed };
+      }
+      return {
+        isValid: false,
+        error: `Protokol '${parsed.protocol}' tidak disokong. Hanya HTTP atau HTTPS dibenarkan.`,
+      };
+    } catch {
+      return {
+        isValid: false,
+        error: `Format URL gambar '${trimmed}' tidak sah.`,
+      };
+    }
+  }
+
+  /**
+   * Generates and downloads a standardized CSV template for product catalogue import.
+   * Includes Image URL column with clear sample data.
+   */
+  public static downloadProductsCsvTemplate(): void {
     const headers = [
       'SKU',
       'Name',
@@ -121,6 +164,56 @@ export class CsvService {
       'Current Stock',
       'Minimum Stock',
       'Status',
+      'Image URL',
+    ];
+
+    const sampleRows = [
+      [
+        'PROD-001',
+        'Contoh Biskut Coklat 200g',
+        'Snacks & Biscuits',
+        '2.50',
+        '3.80',
+        '24',
+        '5',
+        'ACTIVE',
+        'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=500',
+      ],
+      [
+        'PROD-002',
+        'Contoh Minyak Masak 5kg',
+        'Cooking Essentials',
+        '28.00',
+        '32.50',
+        '12',
+        '4',
+        'ACTIVE',
+        '',
+      ],
+    ];
+
+    this.downloadCsv('kedai_papa_products_template.csv', headers, sampleRows);
+  }
+
+  /**
+   * Exports Products catalogue to CSV with Image URL support and standard backup filename.
+   * Complies with Kedai PAPA / NiagaPOS specifications:
+   * - Includes Image URL (imageUrl) for every product
+   * - Preserves all existing product fields
+   * - Clear, consistent CSV format
+   * - Generates backup filename: kedai_papa_products_backup_YYYY-MM-DD.csv
+   */
+  public static exportProducts(products: Product[], customFilename?: string): void {
+    const headers = [
+      'SKU',
+      'Name',
+      'Category',
+      'Cost Price (RM)',
+      'Selling Price (RM)',
+      'Current Stock',
+      'Minimum Stock',
+      'Status',
+      'Image URL',
     ];
 
     const rows = products.map((p) => [
@@ -132,10 +225,16 @@ export class CsvService {
       p.currentStock,
       p.minimumStock,
       p.active ? 'ACTIVE' : 'INACTIVE',
+      p.imageUrl || p.image || '',
     ]);
 
-    const dateStr = new Date().toISOString().slice(0, 10);
-    this.downloadCsv(`niagapos_v2_products_${dateStr}.csv`, headers, rows);
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const filename = customFilename || `kedai_papa_products_backup_${dateStr}.csv`;
+    this.downloadCsv(filename, headers, rows);
   }
 
   /**
@@ -343,6 +442,11 @@ export class CsvService {
 
       const rawMinStock = findVal(/min|minimum|ambang/i);
       const rawStatus = findVal(/status|active|aktif/i);
+      const rawImage = findVal(/image.*url|url.*image|imageUrl|gambar|url.*gambar|image|foto|photo/i);
+      const hasImageColumn = Object.keys(row).some((k) =>
+        /image.*url|url.*image|imageUrl|gambar|url.*gambar|image|foto|photo/i.test(k)
+      );
+      const imageValidation = CsvService.validateImageUrl(rawImage);
 
       const sku = SmartInputService.normalizeCode(rawSku);
       const name = SmartInputService.normalizeName(rawName);
@@ -439,8 +543,22 @@ export class CsvService {
           ? Math.max(0, Math.floor(SmartInputService.parseNumeric(rawMinStock, existingProd.minimumStock)))
           : existingProd.minimumStock;
 
+        // Image URL: preserve existing if empty/omitted or invalid
+        let resolvedImageUrl = existingProd.imageUrl;
+        let imageWarning = '';
+        if (hasImageColumn && rawImage.trim() !== '') {
+          if (imageValidation.isValid && imageValidation.normalizedUrl) {
+            resolvedImageUrl = imageValidation.normalizedUrl;
+          } else {
+            imageWarning = `URL gambar tidak sah ('${rawImage.trim()}') diabaikan demi keselamatan.`;
+          }
+        } else {
+          resolvedImageUrl = existingProd.imageUrl;
+        }
+
         if (mode === 'SKIP_EXISTING') {
-          const reason = `SKU '${sku}' sudah wujud dalam katalog (mod Langkau Sedia Ada).`;
+          const reasonBase = `SKU '${sku}' sudah wujud dalam katalog (mod Langkau Sedia Ada).`;
+          const reason = imageWarning ? `${reasonBase} ${imageWarning}` : reasonBase;
           duplicates.push({ rowNumber, reason, item: { sku, name } });
           rows.push({
             rowNumber,
@@ -453,6 +571,7 @@ export class CsvService {
             csvStock: parsedStock,
             minimumStock,
             active: isActive,
+            imageUrl: resolvedImageUrl,
             reason,
             stockNote: 'Stock column ignored for existing products.',
             existingProductId: existingProd.id,
@@ -460,7 +579,8 @@ export class CsvService {
           });
         } else {
           // UPDATE_EXISTING
-          const reason = `SKU '${sku}' sepadan dengan produk sedia ada (${existingProd.name}). Katalog akan dikemas kini.`;
+          const reasonBase = `SKU '${sku}' sepadan dengan produk sedia ada (${existingProd.name}). Katalog akan dikemas kini.`;
+          const reason = imageWarning ? `${reasonBase} ${imageWarning}` : reasonBase;
           const updateItem: CsvProductUpdateItem = {
             existingProductId: existingProd.id,
             sku: existingProd.sku,
@@ -470,6 +590,7 @@ export class CsvService {
             sellingPrice,
             minimumStock,
             active: isActive,
+            imageUrl: resolvedImageUrl,
             ignoredCsvStock: parsedStock,
           };
           updateItems.push(updateItem);
@@ -484,6 +605,7 @@ export class CsvService {
             csvStock: parsedStock,
             minimumStock,
             active: isActive,
+            imageUrl: resolvedImageUrl,
             reason,
             stockNote: 'Stock column ignored for existing products.',
             existingProductId: existingProd.id,
@@ -497,6 +619,16 @@ export class CsvService {
         const category = (rawCategory || 'Snacks & Biscuits').trim();
         const minimumStock = Math.max(0, Math.floor(SmartInputService.parseNumeric(rawMinStock, 5)));
 
+        let newProductImageUrl: string | undefined = undefined;
+        let imageWarning = '';
+        if (hasImageColumn && rawImage.trim() !== '') {
+          if (imageValidation.isValid && imageValidation.normalizedUrl) {
+            newProductImageUrl = imageValidation.normalizedUrl;
+          } else {
+            imageWarning = `URL gambar tidak sah ('${rawImage.trim()}') diabaikan demi keselamatan.`;
+          }
+        }
+
         const newItem: Omit<Product, 'id' | 'storeId' | 'createdAt' | 'updatedAt'> = {
           sku,
           name,
@@ -506,6 +638,7 @@ export class CsvService {
           currentStock: parsedStock,
           minimumStock,
           active: isActive,
+          imageUrl: newProductImageUrl,
         };
 
         newItems.push(newItem);
@@ -520,7 +653,10 @@ export class CsvService {
           csvStock: parsedStock,
           minimumStock,
           active: isActive,
-          reason: 'Produk baru - akan didaftarkan ke katalog.',
+          imageUrl: newProductImageUrl,
+          reason: imageWarning
+            ? `Produk baru - akan didaftarkan ke katalog. ${imageWarning}`
+            : 'Produk baru - akan didaftarkan ke katalog.',
           stockNote:
             parsedStock > 0
               ? `Pembukaan stok: ${parsedStock} unit (STOCK_IN direkodkan)`
@@ -635,6 +771,11 @@ export class CsvService {
 
       const rawMinStock = findVal(/min|minimum|ambang/i);
       const rawStatus = findVal(/status|active|aktif/i);
+      const rawImage = findVal(/image.*url|url.*image|imageUrl|gambar|url.*gambar|image|foto|photo/i);
+      const hasImageColumn = Object.keys(row).some((k) =>
+        /image.*url|url.*image|imageUrl|gambar|url.*gambar|image|foto|photo/i.test(k)
+      );
+      const imageValidation = CsvService.validateImageUrl(rawImage);
 
       const sku = SmartInputService.normalizeCode(rawSku);
       const name = SmartInputService.normalizeName(rawName);
@@ -814,6 +955,22 @@ export class CsvService {
         const minStockChanged = minimumStock !== existingProd.minimumStock;
         const activeChanged = active !== existingProd.active;
 
+        // Image URL handling: preserve existing if empty or invalid, update only if valid and changed
+        let resolvedImageUrl = existingProd.imageUrl;
+        let imageUrlChanged = false;
+        let imageWarning = '';
+
+        if (hasImageColumn && rawImage.trim() !== '') {
+          if (imageValidation.isValid && imageValidation.normalizedUrl) {
+            resolvedImageUrl = imageValidation.normalizedUrl;
+            imageUrlChanged = (existingProd.imageUrl || '') !== resolvedImageUrl;
+          } else {
+            imageWarning = `URL gambar tidak sah ('${rawImage.trim()}') diabaikan demi keselamatan.`;
+          }
+        } else {
+          resolvedImageUrl = existingProd.imageUrl;
+        }
+
         const isUpdated =
           costChanged ||
           sellingPriceChanged ||
@@ -821,7 +978,8 @@ export class CsvService {
           nameChanged ||
           categoryChanged ||
           minStockChanged ||
-          activeChanged;
+          activeChanged ||
+          imageUrlChanged;
 
         const action: 'UPDATE' | 'UNCHANGED' = isUpdated ? 'UPDATE' : 'UNCHANGED';
         let reason = '';
@@ -845,9 +1003,13 @@ export class CsvService {
           if (categoryChanged) changes.push(`kategori (${existingProd.category} → ${category})`);
           if (minStockChanged) changes.push(`min stok (${existingProd.minimumStock} → ${minimumStock})`);
           if (activeChanged) changes.push(`status (${existingProd.active ? 'Aktif' : 'Tidak Aktif'} → ${active ? 'Aktif' : 'Tidak Aktif'})`);
+          if (imageUrlChanged) changes.push('gambar produk dikemas kini');
           reason = `Katalog dikemas kini: ${changes.join(', ')}.`;
         } else {
           reason = 'Data katalog dan stok semasa sepadan sepenuhnya dengan fail CSV.';
+        }
+        if (imageWarning) {
+          reason = `${reason} ${imageWarning}`;
         }
 
         rows.push({
@@ -863,6 +1025,8 @@ export class CsvService {
           stockDifference,
           minimumStock,
           active,
+          imageUrl: resolvedImageUrl,
+          imageUrlChanged,
           reason,
           stockNote,
           existingProductId: existingProd.id,
@@ -873,10 +1037,24 @@ export class CsvService {
         });
       } else {
         // Genuinely NEW product
+        let newProductImageUrl: string | undefined = undefined;
+        let imageWarning = '';
+        if (hasImageColumn && rawImage.trim() !== '') {
+          if (imageValidation.isValid && imageValidation.normalizedUrl) {
+            newProductImageUrl = imageValidation.normalizedUrl;
+          } else {
+            imageWarning = `URL gambar tidak sah ('${rawImage.trim()}') diabaikan demi keselamatan.`;
+          }
+        }
+
         const stockNote =
           csvStock > 0
             ? `Pembukaan stok: ${csvStock} unit (STOCK_IN direkodkan)`
             : 'Tiada pembukaan stok (0 unit)';
+
+        const newReason = imageWarning
+          ? `Produk baharu - akan didaftarkan ke dalam katalog master. ${imageWarning}`
+          : 'Produk baharu - akan didaftarkan ke dalam katalog master.';
 
         rows.push({
           rowNumber,
@@ -891,7 +1069,8 @@ export class CsvService {
           stockDifference: csvStock,
           minimumStock,
           active,
-          reason: 'Produk baharu - akan didaftarkan ke dalam katalog master.',
+          imageUrl: newProductImageUrl,
+          reason: newReason,
           stockNote,
           costChanged: true,
           sellingPriceChanged: true,

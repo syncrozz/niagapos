@@ -2,7 +2,7 @@
  * NiagaPOS V2 - Firebase Configuration
  * 
  * Isolated Firebase configuration for NiagaPOS V2.
- * Strictly decoupled from Kedai PAPA V1 to ensure 100% data safety.
+ * Strictly decoupled from NiagaPOS V1 to ensure 100% data safety.
  */
 
 import firebaseAppletConfig from '../../firebase-applet-config.json';
@@ -35,19 +35,19 @@ export const firebaseConfig: FirebaseConfig = {
 
 /**
  * Validates whether isolated Firebase credentials for NiagaPOS V2 are configured.
- * Strictly verifies that the configuration does NOT point to Kedai PAPA V1.
+ * Strictly verifies that the configuration does NOT point to NiagaPOS V1.
  */
 export function isFirebaseConfigured(): boolean {
   if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
     return false;
   }
-  // Hard block any accidental usage of Kedai PAPA V1 credentials
+  // Hard block any accidental usage of NiagaPOS V1 credentials
   if (
     firebaseConfig.projectId === 'gen-lang-client-0739778545' ||
     firebaseConfig.firestoreDatabaseId === 'ai-studio-kedaipapa-83cf9f6a-4d6f-4cdd-8a1c-b5bf36caa265'
   ) {
     console.warn(
-      '[NiagaPOS V2 Security] Blocked attempt to connect to Kedai PAPA V1 production Firebase. Please provide dedicated NiagaPOS V2 credentials.'
+      '[NiagaPOS V2 Security] Blocked attempt to connect to NiagaPOS V1 production Firebase. Please provide dedicated NiagaPOS V2 credentials.'
     );
     return false;
   }

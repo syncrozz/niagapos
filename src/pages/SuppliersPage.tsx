@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Suppliers Management Page
+ * NiagaPOS - Suppliers Management Page
  * Part 05: Purchasing + Supplier Management
  */
 

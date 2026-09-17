@@ -3,7 +3,7 @@
  * 
  * Supports both:
  * 1. Cloud Firestore live multi-tenant backend (when Firebase credentials configured)
- * 2. Isolated local storage fallback with zero Kedai PAPA V1 contamination
+ * 2. Isolated local storage fallback with zero NiagaPOS V1 contamination
  * 
  * Complies with SES v4.4:
  * - Creates workspace document in /workspaces/{workspaceId}

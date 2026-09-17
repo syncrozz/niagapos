@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 07 Verification & Regression Suite
+ * NiagaPOS - Part 07 Verification & Regression Suite
  * Tests Optional Retail Modules:
  * - Customer Directory & Sequential Code Validation
  * - Non-destructive Customer Deletion / Deactivation

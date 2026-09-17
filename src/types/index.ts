@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Core Domain Data Types & Interfaces
+ * NiagaPOS - Core Domain Data Types & Interfaces
  * Part 01: Foundation & Application Architecture
  * Part 02: Product & Inventory Management
  */
@@ -252,6 +252,7 @@ export interface ProductCatalogUpdatePayload {
   sellingPrice: number;
   minimumStock: number;
   active: boolean;
+  imageUrl?: string;
   ignoredCsvStock?: number;
 }
 
@@ -285,6 +286,8 @@ export interface MasterSyncProductRow {
   stockDifference?: number;
   minimumStock: number;
   active: boolean;
+  imageUrl?: string;
+  imageUrlChanged?: boolean;
   reason: string;
   stockNote: string;
   existingProductId?: string;

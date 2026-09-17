@@ -56,7 +56,3 @@ export const NIAGAPOS_ASSETS = {
   },
 } as const;
 
-// Backwards compatibility alias for components referencing legacy constant name
-export const KEDAI_PAPA_ASSET_BASE = NIAGAPOS_ASSET_BASE;
-export const KEDAI_PAPA_ASSETS = NIAGAPOS_ASSETS;
-

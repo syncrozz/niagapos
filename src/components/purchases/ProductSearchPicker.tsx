@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Search-First Product Picker
+ * NiagaPOS - Search-First Product Picker
  * Targeted UX enhancement for Purchase Order Module
  * 
  * Features:

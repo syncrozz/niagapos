@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 05 Purchasing + Supplier Management Verification Runner
+ * NiagaPOS - Part 05 Purchasing + Supplier Management Verification Runner
  * 
  * Programmatically validates all Part 05 specifications:
  * A - Supplier Registration, Code Uniqueness & Format (SUP-001, etc.)
@@ -1892,7 +1892,7 @@ export class Part05VerificationRunner {
     // -------------------------------------------------------------------------
     try {
       // 1. Supplier registered
-      const supplier = createMockSupplier('sup-al', 'SUP-AL', 'Papa Master Wholesaler');
+      const supplier = createMockSupplier('sup-al', 'SUP-AL', 'NiagaPOS Master Wholesaler');
 
       // 2. Product initialized
       const initialProduct = createMockProduct('prod-al', 'LIFECYCLE-01', 'Organic Tea', 8.0, 12.0, 5);

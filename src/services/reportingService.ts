@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Sales & Profit Management / Reporting Domain Service
+ * NiagaPOS - Sales & Profit Management / Reporting Domain Service
  * Part 04: Sales & Profit Management / Reporting
  * 
  * Core Accounting Principles:

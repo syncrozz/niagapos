@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 01.5 Foundation Verification Test Runner
+ * NiagaPOS - Part 01.5 Foundation Verification Test Runner
  * 
  * Programmatically executes and validates all 21 verification test scenarios
  * specified in the PART 01.5 task description.

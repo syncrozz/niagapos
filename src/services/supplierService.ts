@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Supplier Service
+ * NiagaPOS - Supplier Service
  * Part 05: Purchasing + Supplier Management
  *
  * Rules:

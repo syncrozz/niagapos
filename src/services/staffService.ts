@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Staff Domain Service
+ * NiagaPOS - Staff Domain Service
  * Part 07: Optional Retail Modules - Staff & Cashier Foundation
  *
  * Rules:

@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Inventory Domain Service
+ * NiagaPOS - Inventory Domain Service
  * Part 01: Foundation & Application Architecture
  * Part 02: Product & Inventory Management
  * 

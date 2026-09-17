@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 04 Sales & Profit Management / Reporting Verification Runner
+ * NiagaPOS - Part 04 Sales & Profit Management / Reporting Verification Runner
  * 
  * Programmatically validates all Part 04 specifications:
  * A. Dashboard KPIs (Today's Sales, COGS, Gross Profit, Transactions, Items Sold, ATV, Inventory Value, Low Stock, Out of Stock)

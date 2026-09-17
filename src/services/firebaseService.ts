@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Firebase Firestore Real-Time Multi-Device Sync Service
+ * NiagaPOS - Firebase Firestore Real-Time Multi-Device Sync Service
  * 
  * Provides cloud persistence and multi-device real-time sync for:
  * - Stores & Settings

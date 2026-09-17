@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 03 POS Checkout & Sales Transaction Verification Runner
+ * NiagaPOS - Part 03 POS Checkout & Sales Transaction Verification Runner
  * 
  * Programmatically validates all 36 tests (TEST A through TEST AJ) defined in the PART 03 specifications.
  */

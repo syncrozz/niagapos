@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Product Lifecycle & Deletion Semantics Verification Runner
+ * NiagaPOS - Product Lifecycle & Deletion Semantics Verification Runner
  *
  * Implements 16 comprehensive verification tests (A through P) as specified in
  * the Product Delete / Deactivate Semantics requirement:
@@ -47,9 +47,9 @@ export interface ProductLifecycleTestResult {
 
 export class ProductLifecycleVerificationRunner {
   private static testStore: Store = {
-    id: 'store-papa-test',
-    code: 'KP01',
-    name: 'Kedai PAPA Test Store',
+    id: 'store-niagapos-test',
+    code: 'NP01',
+    name: 'NiagaPOS Test Store',
     address: 'Lot 10, Jalan Pasar, 50000 KL',
     currency: 'MYR',
     createdAt: '2026-09-01T08:00:00Z',

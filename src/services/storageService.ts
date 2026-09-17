@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Storage Safety, Versioning, and Backup/Restore Service
+ * NiagaPOS - Storage Safety, Versioning, and Backup/Restore Service
  * Part 08: Production Hardening & Release Readiness
  *
  * Core Directives:

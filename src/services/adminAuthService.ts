@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Admin Mode Authentication Service
+ * NiagaPOS - Admin Mode Authentication Service
  * SYNCROZZ Engineering Standard (SES) v4.4 Locked
  *
  * Rules:

@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Retail Formatting Utilities
+ * NiagaPOS - Retail Formatting Utilities
  * Part 01.5: Foundation Verification & Stabilization
  * 
  * Ensures robust display of currency, profit, and stock statuses.

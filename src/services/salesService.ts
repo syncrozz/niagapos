@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Sales & Gross Profit Domain Service
+ * NiagaPOS - Sales & Gross Profit Domain Service
  * Part 01: Foundation & Application Architecture
  * 
  * Rules:

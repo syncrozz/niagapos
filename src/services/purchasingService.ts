@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Purchasing Service
+ * NiagaPOS - Purchasing Service
  * Part 05: Purchasing + Supplier Management
  *
  * Core Retail Cycle:

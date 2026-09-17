@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 06 Advanced Inventory + Reporting Verification Runner
+ * NiagaPOS - Part 06 Advanced Inventory + Reporting Verification Runner
  * 
  * Programmatically validates all Part 06 specifications:
  * Test 6.1: Current stock equals ledger stock under normal conditions

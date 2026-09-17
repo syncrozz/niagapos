@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Purchases & Stock Receiving Page
+ * NiagaPOS - Purchases & Stock Receiving Page
  * Part 05: Purchasing + Supplier Management
  *
  * Core Workflow:

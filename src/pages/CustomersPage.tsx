@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Customer Management & Loyalty Page
+ * NiagaPOS - Customer Management & Loyalty Page
  * Part 07: Optional Retail Modules
  */
 

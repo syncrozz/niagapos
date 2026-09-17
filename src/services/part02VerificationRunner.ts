@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Part 02 Product & Inventory Management Verification Runner
+ * NiagaPOS - Part 02 Product & Inventory Management Verification Runner
  * 
  * Programmatically validates all tests (A through U) defined in the PART 02 specifications.
  */

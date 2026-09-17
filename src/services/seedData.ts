@@ -1,5 +1,5 @@
 /**
- * Kedai PAPA POS - Initial Seed Data for Pilot Store
+ * NiagaPOS - Initial Seed Data for Pilot Store
  * Part 01: Foundation & Application Architecture
  */
 
@@ -180,7 +180,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     createdAt: '2026-09-01T09:00:00Z',
     updatedAt: '2026-09-01T09:00:00Z',
   },
-  // Kedai PAPA Pilot Store Catalogue Products (Section 24)
+  // NiagaPOS Pilot Store Catalogue Products (Section 24)
   {
     id: 'prod-pilot-001',
     storeId: INITIAL_STORE.id,
@@ -483,7 +483,7 @@ export const INITIAL_MOVEMENTS: InventoryMovement[] = [
     reason: 'Initial pilot store stock-in',
     createdAt: '2026-09-01T09:15:00Z',
   },
-  // Opening stock movements for Kedai PAPA Pilot Catalog
+  // Opening stock movements for NiagaPOS Pilot Catalog
   {
     id: 'mov-init-pilot-001',
     storeId: INITIAL_STORE.id,
@@ -896,7 +896,7 @@ export const INITIAL_LOYALTY_LEDGER: LoyaltyLedgerEntry[] = [
     points: 50,
     type: 'EARNED',
     referenceId: 'INIT-BONUS-01',
-    description: 'Bonus Pendaftaran Keahlian Kedai PAPA',
+    description: 'Bonus Pendaftaran Keahlian NiagaPOS',
     createdAt: '2026-09-01T08:05:00Z',
   },
   {
@@ -905,7 +905,7 @@ export const INITIAL_LOYALTY_LEDGER: LoyaltyLedgerEntry[] = [
     points: 30,
     type: 'EARNED',
     referenceId: 'INIT-BONUS-02',
-    description: 'Bonus Pendaftaran Keahlian Kedai PAPA',
+    description: 'Bonus Pendaftaran Keahlian NiagaPOS',
     createdAt: '2026-09-01T08:35:00Z',
   },
 ];
