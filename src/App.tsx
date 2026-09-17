@@ -25,7 +25,7 @@ import { MasterAdminPage } from './pages/MasterAdminPage';
 import { parseRoute, pushRoute } from './services/urlRouter';
 import { WorkspaceService } from './services/workspaceService';
 import type { Workspace } from './types/workspace';
-import { AlertOctagon, Clock, ShieldAlert, Ban, ExternalLink } from 'lucide-react';
+import { AlertOctagon, Clock, ShieldAlert, Ban, ExternalLink, Building2 } from 'lucide-react';
 
 function WorkspaceTrialBanner({ workspace }: { workspace: Workspace }) {
   const trialStatus = WorkspaceService.calculateTrialStatus(workspace);
@@ -90,9 +90,11 @@ function WorkspaceTrialBanner({ workspace }: { workspace: Workspace }) {
 }
 
 function MainAppContent() {
+  const { store, updateStore } = useStore();
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname));
   const [activePage, setActivePage] = useState<ActivePage>(() => route.systemPage || 'pos');
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+  const [isResolvingWorkspace, setIsResolvingWorkspace] = useState<boolean>(() => Boolean(route.workspaceSlug));
 
   useEffect(() => {
     const handlePopState = () => {
@@ -110,19 +112,42 @@ function MainAppContent() {
   // Sync workspace from route
   useEffect(() => {
     if (route.workspaceSlug) {
-      WorkspaceService.getWorkspaceBySlugAsync(route.workspaceSlug).then((ws) => {
-        if (ws) {
-          setCurrentWorkspace(ws);
-        } else {
-          // If slug not registered yet, check local
-          const localWs = WorkspaceService.getWorkspaceBySlug(route.workspaceSlug!);
-          setCurrentWorkspace(localWs);
-        }
-      });
+      setIsResolvingWorkspace(true);
+      WorkspaceService.getWorkspaceBySlugAsync(route.workspaceSlug)
+        .then((ws) => {
+          if (ws) {
+            setCurrentWorkspace(ws);
+          } else {
+            // If slug not registered yet, check local
+            const localWs = WorkspaceService.getWorkspaceBySlug(route.workspaceSlug!);
+            setCurrentWorkspace(localWs);
+          }
+        })
+        .finally(() => {
+          setIsResolvingWorkspace(false);
+        });
     } else {
       setCurrentWorkspace(null);
+      setIsResolvingWorkspace(false);
     }
   }, [route.workspaceSlug]);
+
+  // Sync document title and store branding to active workspace
+  useEffect(() => {
+    if (currentWorkspace) {
+      document.title = `${currentWorkspace.workspaceName} — NiagaPOS`;
+      if (currentWorkspace.workspaceName && store.name !== currentWorkspace.workspaceName) {
+        updateStore({
+          name: currentWorkspace.workspaceName,
+          code: currentWorkspace.workspaceSlug.toUpperCase(),
+        });
+      }
+    } else if (route.isMasterAdmin) {
+      document.title = 'Konsol Master Admin — NiagaPOS V2';
+    } else {
+      document.title = 'NiagaPOS';
+    }
+  }, [currentWorkspace, route.isMasterAdmin, store.name, updateStore]);
 
   const handleNavigate = (page: ActivePage) => {
     setActivePage(page);
@@ -158,6 +183,55 @@ function MainAppContent() {
           setRoute(parseRoute(`/${slug}/pos`));
         }}
       />
+    );
+  }
+
+  // 2. Loading state while looking up workspace slug
+  if (isResolvingWorkspace) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 font-sans">
+        <div className="flex items-center gap-3 text-stone-700 bg-white px-5 py-3.5 rounded-xl border border-stone-200 shadow-xs">
+          <div className="w-5 h-5 border-2 border-stone-300 border-t-emerald-600 rounded-full animate-spin" />
+          <span className="text-sm font-medium">Memuatkan ruang kerja <strong>{route.workspaceSlug}</strong>...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Workspace not found fallback (if a specific slug was requested but does not exist)
+  if (route.workspaceSlug && !isResolvingWorkspace && !currentWorkspace) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center mb-4 text-amber-700">
+          <Building2 className="w-7 h-7" />
+        </div>
+        <h1 className="text-xl font-bold text-stone-900 mb-2">Workspace Tidak Ditemui</h1>
+        <p className="text-sm text-stone-600 max-w-md mb-6 leading-relaxed">
+          Laluan workspace <code className="bg-stone-200/80 px-2 py-0.5 rounded font-mono text-stone-800 text-xs font-semibold">/{route.workspaceSlug}</code> belum didaftarkan di sistem NiagaPOS V2.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              pushRoute('/admin');
+              setRoute(parseRoute('/admin'));
+            }}
+            className="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-semibold hover:bg-stone-800 transition cursor-pointer shadow-xs"
+          >
+            Buka Konsol Pendaftaran Klien
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              pushRoute('/');
+              setRoute(parseRoute('/'));
+            }}
+            className="px-4 py-2 border border-stone-300 bg-white text-stone-700 rounded-lg text-sm font-semibold hover:bg-stone-100 transition cursor-pointer shadow-xs"
+          >
+            Kembali ke Laman Utama
+          </button>
+        </div>
+      </div>
     );
   }
 

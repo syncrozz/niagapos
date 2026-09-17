@@ -33,15 +33,21 @@ export const RESERVED_ROUTES = [
   'suppliers',
   'customers',
   'reports',
+  'dashboard',
   'api',
   'assets',
+  'sw.js',
+  'site.webmanifest',
+  'manifest.json',
   'favicon.ico',
+  'favicon.svg',
+  'index.html',
 ];
 
 export interface ParsedRoute {
   isMasterAdmin: boolean;
   workspaceSlug: string | null;
-  systemPage: 'pos' | 'products' | 'customers' | 'reports' | 'settings' | 'inventory' | 'suppliers' | 'purchases' | 'konsol' | null;
+  systemPage: 'pos' | 'products' | 'customers' | 'reports' | 'settings' | 'inventory' | 'suppliers' | 'purchases' | 'dashboard' | 'konsol' | null;
   rawPath: string;
 }
 
@@ -101,7 +107,7 @@ export function parseRoute(pathname: string = window.location.pathname): ParsedR
 
   // Check if first segment is a direct system page (standalone legacy mode)
   if (
-    ['pos', 'products', 'customers', 'reports', 'settings', 'inventory', 'suppliers', 'purchases'].includes(
+    ['pos', 'dashboard', 'products', 'customers', 'reports', 'settings', 'inventory', 'suppliers', 'purchases'].includes(
       first
     )
   ) {
@@ -113,6 +119,16 @@ export function parseRoute(pathname: string = window.location.pathname): ParsedR
     };
   }
 
+  // If first segment has a file extension or is a reserved route/invalid slug, do not treat as workspace slug
+  if (first.includes('.') || RESERVED_ROUTES.includes(first) || !isValidSlug(first)) {
+    return {
+      isMasterAdmin: false,
+      workspaceSlug: null,
+      systemPage: 'pos',
+      rawPath: pathname,
+    };
+  }
+
   // Otherwise, first segment is treated as a tenant workspace slug
   const workspaceSlug = first;
   const second = segments[1]?.toLowerCase();
@@ -120,7 +136,7 @@ export function parseRoute(pathname: string = window.location.pathname): ParsedR
 
   if (
     second &&
-    ['pos', 'products', 'customers', 'reports', 'settings', 'inventory', 'suppliers', 'purchases'].includes(
+    ['pos', 'dashboard', 'products', 'customers', 'reports', 'settings', 'inventory', 'suppliers', 'purchases'].includes(
       second
     )
   ) {

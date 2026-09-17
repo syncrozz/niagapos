@@ -108,8 +108,9 @@ interface StoreContextType {
   deleteSupplier: (id: string) => { success: boolean; message: string };
   isSupplierCodeAvailable: (code: string, excludeId?: string) => boolean;
   createPurchase: (input: CreatePurchaseInput) => Purchase;
-  completePurchase: (purchaseId: string) => CompletePurchaseResult;
-  cancelPurchase: (purchaseId: string) => Purchase;
+  completePurchase: (purchaseId: string, preloadedPurchase?: Purchase) => CompletePurchaseResult;
+  createAndCompletePurchase: (input: CreatePurchaseInput) => CompletePurchaseResult;
+  cancelPurchase: (purchaseId: string, preloadedPurchase?: Purchase) => Purchase;
   // Customer & Loyalty Domain Operations (Part 07)
   addCustomer: (input: CreateCustomerInput) => Customer;
   updateCustomer: (id: string, updates: UpdateCustomerInput) => Customer;
@@ -227,11 +228,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
-    return StorageService.safeParse<Purchase[]>(
+    const list = StorageService.safeParse<Purchase[]>(
       localStorage.getItem(STORAGE_KEYS.PURCHASES),
       INITIAL_PURCHASES,
-      (val) => Array.isArray(val)
+      (val) => Array.isArray(val) && val.length > 0
     );
+    return [...list].sort((a, b) => {
+      const timeB = new Date(b.purchaseDate || b.createdAt || 0).getTime();
+      const timeA = new Date(a.purchaseDate || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.purchaseNumber || '').localeCompare(a.purchaseNumber || '');
+    });
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
@@ -295,6 +302,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // Synchronized refs to eliminate race conditions and stale closures
+  const purchasesRef = useRef<Purchase[]>(purchases);
+  purchasesRef.current = purchases;
+
+  const productsRef = useRef<Product[]>(products);
+  productsRef.current = products;
+
+  const suppliersRef = useRef<Supplier[]>(suppliers);
+  suppliersRef.current = suppliers;
 
   // Sync to localStorage
   useEffect(() => {
@@ -389,8 +406,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         StorageService.safeSet(STORAGE_KEYS.SUPPLIERS, cloudData.suppliers);
       }
       if (cloudData.purchases && cloudData.purchases.length > 0) {
-        setPurchases(cloudData.purchases);
-        StorageService.safeSet(STORAGE_KEYS.PURCHASES, cloudData.purchases);
+        const sortedPurchases = [...cloudData.purchases].sort((a, b) => {
+          const timeB = new Date(b.purchaseDate || b.createdAt || 0).getTime();
+          const timeA = new Date(a.purchaseDate || a.createdAt || 0).getTime();
+          if (timeB !== timeA) return timeB - timeA;
+          return (b.purchaseNumber || '').localeCompare(a.purchaseNumber || '');
+        });
+        setPurchases(sortedPurchases);
+        StorageService.safeSet(STORAGE_KEYS.PURCHASES, sortedPurchases);
       }
       if (cloudData.customers && cloudData.customers.length > 0) {
         setCustomers(cloudData.customers);
@@ -490,8 +513,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         StorageService.safeSet(STORAGE_KEYS.SUPPLIERS, cloudData.suppliers);
       }
       if (cloudData.purchases && cloudData.purchases.length > 0) {
-        setPurchases(cloudData.purchases);
-        StorageService.safeSet(STORAGE_KEYS.PURCHASES, cloudData.purchases);
+        const sortedPurchases = [...cloudData.purchases].sort((a, b) => {
+          const timeB = new Date(b.purchaseDate || b.createdAt || 0).getTime();
+          const timeA = new Date(a.purchaseDate || a.createdAt || 0).getTime();
+          if (timeB !== timeA) return timeB - timeA;
+          return (b.purchaseNumber || '').localeCompare(a.purchaseNumber || '');
+        });
+        setPurchases(sortedPurchases);
+        StorageService.safeSet(STORAGE_KEYS.PURCHASES, sortedPurchases);
       }
       if (cloudData.customers && cloudData.customers.length > 0) {
         setCustomers(cloudData.customers);
@@ -530,8 +559,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         onPurchasesUpdated: (remotePurchases) => {
           if (!isMountedRef.current || !remotePurchases) return;
-          setPurchases(remotePurchases);
-          StorageService.safeSet(STORAGE_KEYS.PURCHASES, remotePurchases);
+          if (remotePurchases.length === 0) return;
+          const sortedPurchases = [...remotePurchases].sort((a, b) => {
+            const timeB = new Date(b.purchaseDate || b.createdAt || 0).getTime();
+            const timeA = new Date(a.purchaseDate || a.createdAt || 0).getTime();
+            if (timeB !== timeA) return timeB - timeA;
+            return (b.purchaseNumber || '').localeCompare(a.purchaseNumber || '');
+          });
+          setPurchases(sortedPurchases);
+          StorageService.safeSet(STORAGE_KEYS.PURCHASES, sortedPurchases);
         },
         onCustomersUpdated: (remoteCustomers) => {
           if (!isMountedRef.current || !remoteCustomers) return;
@@ -1569,22 +1605,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const createPurchase = (input: CreatePurchaseInput): Purchase => {
-    const suppliersMap = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
-    const productsMap = new Map<string, Product>(products.map((p) => [p.id, p]));
-    const draft = PurchasingService.createDraftPurchase(input, suppliersMap, productsMap, purchases);
-    setPurchases((prev) => [draft, ...prev]);
+    const suppliersMap = new Map<string, Supplier>(suppliersRef.current.map((s) => [s.id, s]));
+    const productsMap = new Map<string, Product>(productsRef.current.map((p) => [p.id, p]));
+    const draft = PurchasingService.createDraftPurchase(input, suppliersMap, productsMap, purchasesRef.current);
+    purchasesRef.current = [draft, ...purchasesRef.current];
+    setPurchases(purchasesRef.current);
+    StorageService.safeSet(STORAGE_KEYS.PURCHASES, purchasesRef.current);
     FirebaseService.syncPurchase(draft);
     return draft;
   };
 
-  const completePurchase = (purchaseId: string): CompletePurchaseResult => {
-    const purchase = purchases.find((p) => p.id === purchaseId);
+  const completePurchase = (purchaseId: string, preloadedPurchase?: Purchase): CompletePurchaseResult => {
+    let purchase: Purchase | undefined =
+      preloadedPurchase ||
+      purchasesRef.current.find((p) => p.id === purchaseId) ||
+      purchases.find((p) => p.id === purchaseId);
+
     if (!purchase) {
-      throw new Error('Purchase not found.');
+      const cached = StorageService.safeParse<Purchase[]>(localStorage.getItem(STORAGE_KEYS.PURCHASES), []);
+      purchase = cached.find((p) => p.id === purchaseId);
     }
 
-    const suppliersMap = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
-    const productsMap = new Map<string, Product>(products.map((p) => [p.id, p]));
+    if (!purchase) {
+      throw new Error(`Purchase not found: ${purchaseId}`);
+    }
+
+    const suppliersMap = new Map<string, Supplier>(suppliersRef.current.map((s) => [s.id, s]));
+    const productsMap = new Map<string, Product>(productsRef.current.map((p) => [p.id, p]));
 
     const result = PurchasingService.completePurchase(
       purchase,
@@ -1596,16 +1643,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Update products atomically
     setProducts((prev) => {
       const updatedMap = new Map<string, Product>(result.updatedProducts.map((p) => [p.id, p]));
-      return prev.map((p) => updatedMap.get(p.id) || p);
+      const next = prev.map((p) => updatedMap.get(p.id) || p);
+      productsRef.current = next;
+      StorageService.safeSet(STORAGE_KEYS.PRODUCTS, next);
+      return next;
     });
 
     // Add inventory movements
-    setMovements((prev) => [...result.newMovements, ...prev]);
+    setMovements((prev) => {
+      const next = [...result.newMovements, ...prev];
+      StorageService.safeSet(STORAGE_KEYS.MOVEMENTS, next);
+      return next;
+    });
 
     // Update purchase in purchases list
-    setPurchases((prev) =>
-      prev.map((p) => (p.id === purchaseId ? result.completedPurchase : p))
-    );
+    setPurchases((prev) => {
+      const exists = prev.some((p) => p.id === purchaseId);
+      const next = exists
+        ? prev.map((p) => (p.id === purchaseId ? result.completedPurchase : p))
+        : [result.completedPurchase, ...prev];
+      purchasesRef.current = next;
+      StorageService.safeSet(STORAGE_KEYS.PURCHASES, next);
+      return next;
+    });
 
     FirebaseService.syncPurchase(result.completedPurchase);
     result.updatedProducts.forEach((p) => FirebaseService.syncProduct(p));
@@ -1614,16 +1674,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return result;
   };
 
-  const cancelPurchase = (purchaseId: string): Purchase => {
-    const purchase = purchases.find((p) => p.id === purchaseId);
+  const createAndCompletePurchase = (input: CreatePurchaseInput): CompletePurchaseResult => {
+    const suppliersMap = new Map<string, Supplier>(suppliersRef.current.map((s) => [s.id, s]));
+    const productsMap = new Map<string, Product>(productsRef.current.map((p) => [p.id, p]));
+    const draft = PurchasingService.createDraftPurchase(input, suppliersMap, productsMap, purchasesRef.current);
+    purchasesRef.current = [draft, ...purchasesRef.current];
+    setPurchases(purchasesRef.current);
+    StorageService.safeSet(STORAGE_KEYS.PURCHASES, purchasesRef.current);
+    FirebaseService.syncPurchase(draft);
+    return completePurchase(draft.id, draft);
+  };
+
+  const cancelPurchase = (purchaseId: string, preloadedPurchase?: Purchase): Purchase => {
+    let purchase: Purchase | undefined =
+      preloadedPurchase ||
+      purchasesRef.current.find((p) => p.id === purchaseId) ||
+      purchases.find((p) => p.id === purchaseId);
+
     if (!purchase) {
-      throw new Error('Purchase not found.');
+      const cached = StorageService.safeParse<Purchase[]>(localStorage.getItem(STORAGE_KEYS.PURCHASES), []);
+      purchase = cached.find((p) => p.id === purchaseId);
+    }
+
+    if (!purchase) {
+      throw new Error(`Purchase not found: ${purchaseId}`);
     }
 
     const cancelled = PurchasingService.cancelPurchase(purchase);
-    setPurchases((prev) =>
-      prev.map((p) => (p.id === purchaseId ? cancelled : p))
-    );
+    setPurchases((prev) => {
+      const next = prev.map((p) => (p.id === purchaseId ? cancelled : p));
+      purchasesRef.current = next;
+      StorageService.safeSet(STORAGE_KEYS.PURCHASES, next);
+      return next;
+    });
     FirebaseService.syncPurchase(cancelled);
     return cancelled;
   };
@@ -1761,6 +1844,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSupplierCodeAvailable,
         createPurchase,
         completePurchase,
+        createAndCompletePurchase,
         cancelPurchase,
         addCustomer,
         updateCustomer,

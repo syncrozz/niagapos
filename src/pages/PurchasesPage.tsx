@@ -24,6 +24,8 @@ import {
   Trash2,
   X,
   FileCheck2,
+  RotateCcw,
+  FilterX,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Purchase, PurchaseStatus, Product } from '../types';
@@ -43,7 +45,9 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
     purchases,
     createPurchase,
     completePurchase,
+    createAndCompletePurchase,
     cancelPurchase,
+    pullAllFromCloud,
   } = useStore();
 
   // Filter States
@@ -53,6 +57,24 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
   const [datePreset, setDatePreset] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM'>('ALL');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() !== '' ||
+    supplierFilter !== 'ALL' ||
+    statusFilter !== 'ALL' ||
+    datePreset !== 'ALL' ||
+    customStartDate !== '' ||
+    customEndDate !== ''
+  );
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSupplierFilter('ALL');
+    setStatusFilter('ALL');
+    setDatePreset('ALL');
+    setCustomStartDate('');
+    setCustomEndDate('');
+  };
 
   // Modals
   const [isNewPurchaseModalOpen, setIsNewPurchaseModalOpen] = useState(false);
@@ -102,7 +124,12 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
     quantity: number;
   } | null>(null);
 
-  // Synthesize positive confirmation audio chime via Web Audio API
+  // Save & Receive feedback states
+  const [saveButtonFeedback, setSaveButtonFeedback] = useState<'IDLE' | 'RECEIVING' | 'DRAFTING'>('IDLE');
+  const [highlightedPurchaseId, setHighlightedPurchaseId] = useState<string | null>(null);
+  const [stepItemFlash, setStepItemFlash] = useState(false);
+
+  // Synthesize positive confirmation audio chime via Web Audio API (POS Confirmation Chime)
   const playAddItemSound = () => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -119,7 +146,7 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
       osc.frequency.setValueAtTime(659.25, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
 
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
 
       osc.connect(gain);
@@ -128,7 +155,74 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
       osc.start();
       osc.stop(ctx.currentTime + 0.22);
     } catch {
-      // Gracefully ignore if audio cannot play due to browser interaction restrictions
+      // Gracefully ignore
+    }
+  };
+
+  // Synthesize dual-tone triumphant success chime for Receive Stock / Save Purchase
+  const playPositiveSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const now = ctx.currentTime;
+      
+      // Tone 1: E5 (659.25Hz) -> G5 (784Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659.25, now);
+      osc1.frequency.exponentialRampToValueAtTime(784.0, now + 0.08);
+      gain1.gain.setValueAtTime(0.3, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.22);
+
+      // Tone 2: C6 (1046.5Hz) - bright confirmation
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880.0, now + 0.08);
+      osc2.frequency.exponentialRampToValueAtTime(1046.5, now + 0.18);
+      gain2.gain.setValueAtTime(0.3, now + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.38);
+    } catch {
+      // Gracefully ignore
+    }
+  };
+
+  // Warning buzz chime if user clicks action when no items or required fields missing
+  const playWarningSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.setValueAtTime(240, now + 0.1);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } catch {
+      // Gracefully ignore
     }
   };
 
@@ -192,14 +286,23 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
     return {};
   }, [datePreset, customStartDate, customEndDate]);
 
-  // Filtered purchases
+  // Filtered & sorted purchases (newest purchase first: descending by date / purchase number)
   const filteredPurchases = useMemo(() => {
-    return PurchasingService.filterPurchases(purchases, {
+    const list = PurchasingService.filterPurchases(purchases, {
       startDate: dateBounds.start,
       endDate: dateBounds.end,
       supplierId: supplierFilter === 'ALL' ? undefined : supplierFilter,
       status: statusFilter === 'ALL' ? undefined : (statusFilter as PurchaseStatus),
       search: searchQuery,
+    });
+
+    return [...list].sort((a, b) => {
+      const timeB = new Date(b.purchaseDate || b.createdAt || 0).getTime();
+      const timeA = new Date(a.purchaseDate || a.createdAt || 0).getTime();
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      return (b.purchaseNumber || '').localeCompare(a.purchaseNumber || '');
     });
   }, [purchases, dateBounds, supplierFilter, statusFilter, searchQuery]);
 
@@ -318,38 +421,92 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
 
   const handleSavePurchase = (autoComplete = false) => {
     setActionErrorMessage(null);
+    setItemError(null);
+
+    // Auto-detect if user has picked a product in step 2 but hasn't clicked "+ Add Item" yet!
+    let effectiveItems = [...formItems];
+    if (selectedProductId) {
+      const pendingProduct = products.find((p) => p.id === selectedProductId);
+      if (pendingProduct) {
+        const qty = Math.max(1, Number(itemQuantity) || 1);
+        const cost = Number(itemUnitCost) >= 0 ? Number(itemUnitCost) : (pendingProduct.costPrice || 0);
+        const existingIdx = effectiveItems.findIndex((i) => i.productId === selectedProductId);
+        if (existingIdx >= 0) {
+          effectiveItems[existingIdx].quantity += qty;
+          effectiveItems[existingIdx].unitCost = cost;
+        } else {
+          effectiveItems.push({
+            productId: pendingProduct.id,
+            quantity: qty,
+            unitCost: cost,
+          });
+        }
+        setFormItems(effectiveItems);
+        setSelectedProductId('');
+      }
+    }
+
+    if (!formSupplierId) {
+      playWarningSound();
+      setActionErrorMessage('Sila pilih pembekal aktif terlebih dahulu (Please select an active supplier).');
+      return;
+    }
+
+    if (effectiveItems.length === 0) {
+      playWarningSound();
+      setItemError('Sila pilih produk dan masukkan sekurang-kurangnya 1 item ke dalam senarai!');
+      setStepItemFlash(true);
+      setTimeout(() => setStepItemFlash(false), 2500);
+      return;
+    }
 
     try {
-      if (!formSupplierId) {
-        throw new Error('Please select a supplier.');
-      }
-      if (formItems.length === 0) {
-        throw new Error('Purchase must contain at least one item.');
-      }
+      // 1. Play rich positive confirmation audio chime
+      playPositiveSound();
 
-      // 1. Create draft purchase
-      const created = createPurchase({
-        supplierId: formSupplierId,
-        purchaseDate: new Date(`${formDate}T12:00:00Z`).toISOString(),
-        items: formItems,
-        discount: Number(formDiscount) || 0,
-        notes: formNotes,
-      });
+      // 2. Trigger instant button flash feedback
+      setSaveButtonFeedback(autoComplete ? 'RECEIVING' : 'DRAFTING');
 
+      // 3. Atomically execute purchase operation
+      let targetId = '';
       if (autoComplete) {
-        // 2. Immediately complete & receive stock
-        completePurchase(created.id);
+        const result = createAndCompletePurchase({
+          supplierId: formSupplierId,
+          purchaseDate: new Date(`${formDate}T12:00:00Z`).toISOString(),
+          items: effectiveItems,
+          discount: Number(formDiscount) || 0,
+          notes: formNotes,
+        });
+        targetId = result.completedPurchase.id;
         setActionSuccessMessage(
-          `Purchase ${created.purchaseNumber} created & stock received into inventory successfully!`
+          `✓ Pembelian ${result.completedPurchase.purchaseNumber} berjaya direkodkan & stok dimasukkan ke inventori!`
         );
       } else {
-        setActionSuccessMessage(`Purchase ${created.purchaseNumber} saved as DRAFT.`);
+        const created = createPurchase({
+          supplierId: formSupplierId,
+          purchaseDate: new Date(`${formDate}T12:00:00Z`).toISOString(),
+          items: effectiveItems,
+          discount: Number(formDiscount) || 0,
+          notes: formNotes,
+        });
+        targetId = created.id;
+        setActionSuccessMessage(`✓ Pesanan ${created.purchaseNumber} disimpan sebagai Draf.`);
       }
 
-      setIsNewPurchaseModalOpen(false);
-      setTimeout(() => setActionSuccessMessage(null), 5000);
+      // Highlight the newly created purchase at the top of the list
+      setHighlightedPurchaseId(targetId);
+      setTimeout(() => setHighlightedPurchaseId(null), 5000);
+
+      // Give user brief time to observe the success chime & flash indicator before closing modal
+      setTimeout(() => {
+        setIsNewPurchaseModalOpen(false);
+        setSaveButtonFeedback('IDLE');
+        setTimeout(() => setActionSuccessMessage(null), 6000);
+      }, 350);
     } catch (err: any) {
-      setActionErrorMessage(err.message || 'Failed to process purchase.');
+      playWarningSound();
+      setSaveButtonFeedback('IDLE');
+      setActionErrorMessage(err.message || 'Gagal memproses pembelian.');
     }
   };
 
@@ -480,49 +637,63 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Date Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-stone-100">
-          <span className="text-xs font-medium text-stone-400 mr-2 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" /> Date:
-          </span>
-          {(['ALL', 'TODAY', 'WEEK', 'MONTH', 'CUSTOM'] as const).map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setDatePreset(preset)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                datePreset === preset
-                  ? 'bg-stone-900 text-white'
-                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-              }`}
-            >
-              {preset === 'ALL'
-                ? 'All Time'
-                : preset === 'TODAY'
-                ? 'Today'
-                : preset === 'WEEK'
-                ? 'This Week'
-                : preset === 'MONTH'
-                ? 'This Month'
-                : 'Custom'}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-stone-400 mr-2 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" /> Date:
+            </span>
+            {(['ALL', 'TODAY', 'WEEK', 'MONTH', 'CUSTOM'] as const).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setDatePreset(preset)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition cursor-pointer ${
+                  datePreset === preset
+                    ? 'bg-stone-900 text-white'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                {preset === 'ALL'
+                  ? 'All Time'
+                  : preset === 'TODAY'
+                  ? 'Today'
+                  : preset === 'WEEK'
+                  ? 'This Week'
+                  : preset === 'MONTH'
+                  ? 'This Month'
+                  : 'Custom'}
+              </button>
+            ))}
 
-          {datePreset === 'CUSTOM' && (
-            <div className="flex items-center gap-2 ml-2">
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                className="px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded-lg"
-              />
-              <span className="text-xs text-stone-400">to</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                className="px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded-lg"
-              />
-            </div>
+            {datePreset === 'CUSTOM' && (
+              <div className="flex items-center gap-2 ml-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded-lg"
+                />
+                <span className="text-xs text-stone-400">to</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              id="btn-reset-filters-top"
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Filters</span>
+            </button>
           )}
         </div>
       </div>
@@ -531,13 +702,61 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
       <div className="bg-white rounded-xl border border-stone-200 shadow-2xs overflow-hidden">
         {filteredPurchases.length === 0 ? (
           <div className="py-16 text-center text-stone-500 px-4">
-            <Truck className="w-12 h-12 mx-auto text-stone-300 mb-3" />
-            <p className="text-base font-medium text-stone-700">No purchase records found</p>
-            <p className="text-xs text-stone-400 mt-1">
-              {searchQuery || supplierFilter !== 'ALL' || statusFilter !== 'ALL' || datePreset !== 'ALL'
-                ? 'No purchases match your filter parameters.'
-                : 'Click "New Purchase" to record your first supplier order.'}
+            <div className="w-12 h-12 mx-auto rounded-full bg-stone-100 flex items-center justify-center text-stone-400 mb-3">
+              {hasActiveFilters ? <FilterX className="w-6 h-6" /> : <Truck className="w-6 h-6" />}
+            </div>
+            <p className="text-base font-semibold text-stone-800">
+              {hasActiveFilters
+                ? 'Tiada Rekod Pembelian Sepadan (No Matching Purchases)'
+                : 'Tiada Rekod Pembelian (No Purchase Records Found)'}
             </p>
+            <p className="text-xs text-stone-500 mt-1.5 max-w-md mx-auto leading-relaxed">
+              {hasActiveFilters
+                ? `Tiada pesanan pembelian menepati tapisan semasa (${[
+                    searchQuery ? `carian "${searchQuery}"` : null,
+                    supplierFilter !== 'ALL' ? 'pembekal terpilih' : null,
+                    statusFilter !== 'ALL' ? `status ${statusFilter}` : null,
+                    datePreset !== 'ALL' ? `tarikh: ${datePreset}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}). Sila klik butang di bawah untuk menunjukkan semua rekod.`
+                : 'Belum ada pesanan pembelian pembekal direkodkan. Klik butang di bawah untuk membina pesanan baharu atau segerak semula dari awan Firestore.'}
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  id="btn-reset-filters"
+                  onClick={resetFilters}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 transition cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Set Semula Penapis (Tunjuk Semua)</span>
+                </button>
+              )}
+              <button
+                type="button"
+                id="btn-empty-new-purchase"
+                onClick={openNewPurchaseModal}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Bina Pesanan Baharu</span>
+              </button>
+              <button
+                type="button"
+                id="btn-sync-cloud-purchases"
+                onClick={async () => {
+                  await pullAllFromCloud();
+                  setActionSuccessMessage('Data pembelian berjaya disegerakkan daripada Firestore.');
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition cursor-pointer"
+              >
+                <PackageCheck className="w-3.5 h-3.5" />
+                <span>Segerak Dari Firestore</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -555,10 +774,28 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
               </thead>
               <tbody className="divide-y divide-stone-100 text-stone-800">
                 {filteredPurchases.map((purchase) => {
+                  const isJustAdded = purchase.id === highlightedPurchaseId;
                   return (
-                    <tr key={purchase.id} className="hover:bg-stone-50/60 transition-colors">
+                    <tr
+                      key={purchase.id}
+                      className={`transition-all duration-500 ${
+                        isJustAdded
+                          ? 'bg-emerald-100/90 ring-2 ring-emerald-500 font-medium'
+                          : 'hover:bg-stone-50/60'
+                      }`}
+                    >
                       <td className="py-3 px-4 font-mono font-bold text-xs text-stone-900">
-                        {purchase.purchaseNumber}
+                        <div className="flex items-center gap-1.5">
+                          {isJustAdded && (
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+                          )}
+                          <span>{purchase.purchaseNumber}</span>
+                          {isJustAdded && (
+                            <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-sans uppercase font-bold tracking-wider">
+                              Baru
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-xs text-stone-600">
                         {formatDateTime(purchase.purchaseDate)}
@@ -723,7 +960,13 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
               </div>
 
               {/* Step 2: Add Line Item */}
-              <div className="p-4 rounded-xl border border-stone-200 bg-white space-y-3">
+              <div
+                className={`p-4 rounded-xl border bg-white space-y-3 transition-all duration-300 ${
+                  stepItemFlash
+                    ? 'border-rose-400 ring-4 ring-rose-200/80 bg-rose-50/30'
+                    : 'border-stone-200'
+                }`}
+              >
                 <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
                   <Plus className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Add Products to Purchase</span>
@@ -965,21 +1208,49 @@ export const PurchasesPage: React.FC<PurchasesPageProps> = ({ onNavigate }) => {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  disabled={formItems.length === 0}
+                  id="btn-save-purchase-draft"
+                  disabled={saveButtonFeedback !== 'IDLE'}
                   onClick={() => handleSavePurchase(false)}
-                  className="flex-1 sm:flex-none px-4 py-2 text-sm bg-stone-200 hover:bg-stone-300 disabled:opacity-50 text-stone-800 rounded-lg font-medium transition"
+                  className={`flex-1 sm:flex-none px-4 py-2.5 text-xs sm:text-sm rounded-lg font-medium transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    saveButtonFeedback === 'DRAFTING'
+                      ? 'bg-amber-600 text-white ring-2 ring-amber-400 scale-[1.02] shadow-sm'
+                      : 'bg-stone-200 hover:bg-stone-300 text-stone-800 active:scale-95'
+                  }`}
                 >
-                  Save as Draft
+                  {saveButtonFeedback === 'DRAFTING' ? (
+                    <>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>✓ Disimpan!</span>
+                    </>
+                  ) : (
+                    <span>Save as Draft</span>
+                  )}
                 </button>
 
                 <button
                   type="button"
-                  disabled={formItems.length === 0}
+                  id="btn-save-purchase-receive"
+                  disabled={saveButtonFeedback !== 'IDLE'}
                   onClick={() => handleSavePurchase(true)}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg font-semibold transition shadow-xs cursor-pointer"
+                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs sm:text-sm rounded-lg font-semibold transition-all duration-200 shadow-sm cursor-pointer active:scale-95 ${
+                    saveButtonFeedback === 'RECEIVING'
+                      ? 'bg-emerald-600 text-white ring-4 ring-emerald-300 ring-offset-2 scale-[1.03] animate-pulse shadow-md'
+                      : formItems.length === 0 && !selectedProductId
+                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white hover:ring-2 hover:ring-emerald-400'
+                      : 'bg-emerald-700 hover:bg-emerald-800 text-white ring-1 ring-emerald-600 hover:shadow-md'
+                  }`}
                 >
-                  <PackageCheck className="w-4 h-4" />
-                  <span>Receive Stock Now</span>
+                  {saveButtonFeedback === 'RECEIVING' ? (
+                    <>
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>✓ Item & Stok Berjaya Dimasukkan!</span>
+                    </>
+                  ) : (
+                    <>
+                      <PackageCheck className="w-4 h-4" />
+                      <span>Receive Stock Now</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -22,7 +22,7 @@ import {
 } from '../types/workspace';
 import { isValidSlug } from './urlRouter';
 import { FirebaseService, OperationType } from './firebaseService';
-import { doc, setDoc, getDoc, getDocs, collection, query, writeBatch, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection, query, where, writeBatch, deleteDoc } from 'firebase/firestore';
 
 const WORKSPACES_LOCAL_KEY = 'niagapos_workspaces_v1';
 const WORKSPACE_MEMBERS_LOCAL_KEY = 'niagapos_workspace_members_v1';
@@ -144,8 +144,30 @@ export class WorkspaceService {
     safeSetItem(`${WORKSPACE_MEMBERS_LOCAL_KEY}_${workspaceId}`, JSON.stringify(members));
   }
 
+  public static upsertLocalWorkspace(workspace: Workspace): void {
+    try {
+      const all = this.getAllWorkspacesLocal();
+      const idx = all.findIndex(
+        (w) =>
+          w.workspaceId === workspace.workspaceId ||
+          w.workspaceSlug.toLowerCase() === workspace.workspaceSlug.toLowerCase()
+      );
+      if (idx >= 0) {
+        all[idx] = workspace;
+      } else {
+        all.push(workspace);
+      }
+      this.saveWorkspacesLocal(all);
+    } catch {}
+  }
+
   /**
    * Looks up a workspace by its unique URL slug.
+   * Multi-tier resolution:
+   * 1. Check /workspace_slugs/{slug} index document
+   * 2. Fallback query /workspaces where workspaceSlug == slug
+   * 3. Fallback direct /workspaces/{slug} document
+   * 4. Fallback local isolated store
    */
   public static async getWorkspaceBySlugAsync(slug: string): Promise<Workspace | null> {
     if (!slug) return null;
@@ -154,15 +176,47 @@ export class WorkspaceService {
     const db = FirebaseService.getDb();
     if (db) {
       try {
+        // 1. Primary: Look up slug registry index
         const slugDocRef = doc(db, 'workspace_slugs', clean);
         const slugSnap = await getDoc(slugDocRef);
         if (slugSnap.exists()) {
           const { workspaceId } = slugSnap.data() as { workspaceId: string };
-          const wsDocRef = doc(db, 'workspaces', workspaceId);
-          const wsSnap = await getDoc(wsDocRef);
-          if (wsSnap.exists()) {
-            return wsSnap.data() as Workspace;
+          if (workspaceId) {
+            const wsDocRef = doc(db, 'workspaces', workspaceId);
+            const wsSnap = await getDoc(wsDocRef);
+            if (wsSnap.exists()) {
+              const ws = wsSnap.data() as Workspace;
+              this.upsertLocalWorkspace(ws);
+              return ws;
+            }
           }
+        }
+
+        // 2. Secondary: Query /workspaces collection by workspaceSlug
+        const wsQuery = query(collection(db, 'workspaces'), where('workspaceSlug', '==', clean));
+        const wsQuerySnap = await getDocs(wsQuery);
+        if (!wsQuerySnap.empty) {
+          const ws = wsQuerySnap.docs[0].data() as Workspace;
+          this.upsertLocalWorkspace(ws);
+          // Self-heal the slug registry index in Firestore
+          try {
+            const healSlugRef = doc(db, 'workspace_slugs', clean);
+            await setDoc(healSlugRef, this.sanitize({
+              slug: clean,
+              workspaceId: ws.workspaceId,
+              createdAt: ws.createdAt || new Date().toISOString(),
+            }), { merge: true });
+          } catch {}
+          return ws;
+        }
+
+        // 3. Tertiary: Check if workspace document ID matches clean slug
+        const directWsRef = doc(db, 'workspaces', clean);
+        const directSnap = await getDoc(directWsRef);
+        if (directSnap.exists()) {
+          const ws = directSnap.data() as Workspace;
+          this.upsertLocalWorkspace(ws);
+          return ws;
         }
       } catch (err) {
         console.warn('[WorkspaceService] Firestore getWorkspaceBySlugAsync error:', err);
@@ -405,6 +459,26 @@ export class WorkspaceService {
     all.push(newWorkspace);
     this.saveWorkspacesLocal(all);
     this.saveWorkspaceMembersLocal(workspaceId, [ownerMember]);
+
+    // Async persist to Firestore to ensure durable cloud persistence
+    const db = FirebaseService.getDb();
+    if (db) {
+      try {
+        const batch = writeBatch(db);
+        batch.set(doc(db, 'workspaces', workspaceId), this.sanitize(newWorkspace));
+        batch.set(doc(db, 'workspace_slugs', cleanSlug), this.sanitize({
+          slug: cleanSlug,
+          workspaceId,
+          createdAt: now.toISOString(),
+        }));
+        batch.set(doc(db, 'workspaces', workspaceId, 'members', ownerUid), this.sanitize(ownerMember));
+        batch.commit().catch((err) => {
+          console.warn('[WorkspaceService] Async Firestore write failed in createWorkspace:', err);
+        });
+      } catch (err) {
+        console.warn('[WorkspaceService] Error queueing Firestore batch in createWorkspace:', err);
+      }
+    }
 
     return { success: true, workspace: newWorkspace };
   }

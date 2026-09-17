@@ -570,15 +570,16 @@ export class PurchasingService {
   ): Purchase[] {
     return purchases.filter((p) => {
       // Date filter
-      if (filters.startDate) {
-        const pDate = new Date(p.purchaseDate).getTime();
+      const purchaseDateStr = p.purchaseDate || p.createdAt;
+      if (filters.startDate && purchaseDateStr) {
+        const pDate = new Date(purchaseDateStr).getTime();
         const start = new Date(filters.startDate).getTime();
-        if (pDate < start) return false;
+        if (!isNaN(pDate) && !isNaN(start) && pDate < start) return false;
       }
-      if (filters.endDate) {
-        const pDate = new Date(p.purchaseDate).getTime();
+      if (filters.endDate && purchaseDateStr) {
+        const pDate = new Date(purchaseDateStr).getTime();
         const end = new Date(filters.endDate).getTime();
-        if (pDate > end) return false;
+        if (!isNaN(pDate) && !isNaN(end) && pDate > end) return false;
       }
 
       // Supplier filter
@@ -594,20 +595,28 @@ export class PurchasingService {
       // Search filter
       if (filters.search && filters.search.trim()) {
         const q = filters.search.trim().toLowerCase();
-        const numMatch = p.purchaseNumber.toLowerCase().includes(q);
-        const suppNameMatch = p.supplierNameSnapshot.toLowerCase().includes(q);
-        const suppCodeMatch = p.supplierCodeSnapshot.toLowerCase().includes(q);
-        const itemMatch = p.items.some(
+        const numMatch = (p.purchaseNumber || '').toLowerCase().includes(q);
+        const suppNameMatch = (p.supplierNameSnapshot || '').toLowerCase().includes(q);
+        const suppCodeMatch = (p.supplierCodeSnapshot || '').toLowerCase().includes(q);
+        const notesMatch = (p.notes || '').toLowerCase().includes(q);
+        const itemMatch = (p.items || []).some(
           (i) =>
-            i.productNameSnapshot.toLowerCase().includes(q) ||
-            i.skuSnapshot.toLowerCase().includes(q)
+            (i.productNameSnapshot || '').toLowerCase().includes(q) ||
+            (i.skuSnapshot || '').toLowerCase().includes(q)
         );
-        if (!numMatch && !suppNameMatch && !suppCodeMatch && !itemMatch) {
+        if (!numMatch && !suppNameMatch && !suppCodeMatch && !itemMatch && !notesMatch) {
           return false;
         }
       }
 
       return true;
+    }).sort((a, b) => {
+      const timeB = new Date(b.purchaseDate || b.createdAt || 0).getTime();
+      const timeA = new Date(a.purchaseDate || a.createdAt || 0).getTime();
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      return (b.purchaseNumber || '').localeCompare(a.purchaseNumber || '');
     });
   }
 }
