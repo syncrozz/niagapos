@@ -1,5 +1,5 @@
 // NiagaPOS Service Worker (Network-First Strategy with Cache Invalidation)
-const CACHE_NAME = 'niagapos-pwa-v2.4';
+const CACHE_NAME = 'niagapos-pwa-v2.5';
 
 const ASSETS_TO_PRECACHE = [
   '/',

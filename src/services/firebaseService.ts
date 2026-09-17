@@ -547,14 +547,22 @@ export class FirebaseService {
       const [
         storesSnap,
         productsSnap,
+        movementsSnap,
+        salesSnap,
         suppliersSnap,
+        purchasesSnap,
         customersSnap,
+        loyaltySnap,
         staffSnap,
       ] = await Promise.all([
         getDocs(collection(db, 'stores')),
         getDocs(collection(db, 'products')),
+        getDocs(collection(db, 'inventory_movements')),
+        getDocs(collection(db, 'sales')),
         getDocs(collection(db, 'suppliers')),
+        getDocs(collection(db, 'purchases')),
         getDocs(collection(db, 'customers')),
+        getDocs(collection(db, 'loyalty_ledger')),
         getDocs(collection(db, 'staff_users')),
       ]);
 
@@ -562,7 +570,7 @@ export class FirebaseService {
       const batch = writeBatch(db);
 
       // Store
-      if (storesSnap.empty) {
+      if (storesSnap.empty && initialData.store) {
         batch.set(doc(db, 'stores', initialData.store.id), sanitize(initialData.store));
         seededAny = true;
       }
@@ -575,6 +583,22 @@ export class FirebaseService {
         seededAny = true;
       }
 
+      // Movements
+      if (movementsSnap.empty && initialData.movements.length > 0) {
+        initialData.movements.forEach((m) => {
+          batch.set(doc(db, 'inventory_movements', m.id), sanitize(m));
+        });
+        seededAny = true;
+      }
+
+      // Sales
+      if (salesSnap.empty && initialData.sales.length > 0) {
+        initialData.sales.forEach((s) => {
+          batch.set(doc(db, 'sales', s.id), sanitize(s));
+        });
+        seededAny = true;
+      }
+
       // Suppliers
       if (suppliersSnap.empty && initialData.suppliers.length > 0) {
         initialData.suppliers.forEach((s) => {
@@ -583,10 +607,26 @@ export class FirebaseService {
         seededAny = true;
       }
 
+      // Purchases
+      if (purchasesSnap.empty && initialData.purchases.length > 0) {
+        initialData.purchases.forEach((p) => {
+          batch.set(doc(db, 'purchases', p.id), sanitize(p));
+        });
+        seededAny = true;
+      }
+
       // Customers
       if (customersSnap.empty && initialData.customers.length > 0) {
         initialData.customers.forEach((c) => {
           batch.set(doc(db, 'customers', c.id), sanitize(c));
+        });
+        seededAny = true;
+      }
+
+      // Loyalty
+      if (loyaltySnap.empty && initialData.loyaltyLedger.length > 0) {
+        initialData.loyaltyLedger.forEach((l) => {
+          batch.set(doc(db, 'loyalty_ledger', l.id), sanitize(l));
         });
         seededAny = true;
       }

@@ -204,9 +204,61 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "customerId", "points", "type", "referenceId", "createdAt"]
+    },
+    "StaffUser": {
+      "title": "StaffUser",
+      "description": "Store cashier or staff profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "active"]
     }
   },
   "firestore": {
+    "/system/{docId}": {
+      "description": "System health and connection check documents"
+    },
+    "/stores/{storeId}": {
+      "schema": "Store",
+      "description": "Root store configuration document"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Root product catalog items"
+    },
+    "/inventory_movements/{movementId}": {
+      "schema": "InventoryMovement",
+      "description": "Root inventory movements audit ledger"
+    },
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Root sales checkout transactions"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Root suppliers directory"
+    },
+    "/purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "Root purchases and restock records"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Root customer directory"
+    },
+    "/loyalty_ledger/{ledgerId}": {
+      "schema": "LoyaltyLedgerEntry",
+      "description": "Root customer loyalty points ledger"
+    },
+    "/staff_users/{staffId}": {
+      "schema": "StaffUser",
+      "description": "Root staff accounts and cashier directory"
+    },
     "/platform_admins/{adminUid}": {
       "schema": "PlatformAdmin",
       "description": "Platform Master Admin directory"

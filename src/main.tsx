@@ -7,7 +7,7 @@ import './index.css';
 if ('caches' in window) {
   caches.keys().then((names) => {
     for (const name of names) {
-      if (name !== 'niagapos-pwa-v2.4') {
+      if (name !== 'niagapos-pwa-v2.5') {
         caches.delete(name).catch(() => {});
       }
     }
