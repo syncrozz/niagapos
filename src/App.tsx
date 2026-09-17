@@ -26,6 +26,7 @@ import { parseRoute, pushRoute } from './services/urlRouter';
 import { WorkspaceService } from './services/workspaceService';
 import type { Workspace } from './types/workspace';
 import { AlertOctagon, Clock, ShieldAlert, Ban, ExternalLink, Building2 } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function WorkspaceTrialBanner({ workspace }: { workspace: Workspace }) {
   const trialStatus = WorkspaceService.calculateTrialStatus(workspace);
@@ -90,7 +91,7 @@ function WorkspaceTrialBanner({ workspace }: { workspace: Workspace }) {
 }
 
 function MainAppContent() {
-  const { store, updateStore } = useStore();
+  const { store, updateStoreDetails } = useStore();
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname));
   const [activePage, setActivePage] = useState<ActivePage>(() => route.systemPage || 'pos');
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
@@ -137,7 +138,7 @@ function MainAppContent() {
     if (currentWorkspace) {
       document.title = `${currentWorkspace.workspaceName} — NiagaPOS`;
       if (currentWorkspace.workspaceName && store.name !== currentWorkspace.workspaceName) {
-        updateStore({
+        updateStoreDetails({
           name: currentWorkspace.workspaceName,
           code: currentWorkspace.workspaceSlug.toUpperCase(),
         });
@@ -147,7 +148,7 @@ function MainAppContent() {
     } else {
       document.title = 'NiagaPOS';
     }
-  }, [currentWorkspace, route.isMasterAdmin, store.name, updateStore]);
+  }, [currentWorkspace, route.isMasterAdmin, store.name, updateStoreDetails]);
 
   const handleNavigate = (page: ActivePage) => {
     setActivePage(page);

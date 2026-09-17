@@ -3,7 +3,7 @@
  * Part 01: Foundation & Application Architecture
  */
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   Store,
   Product,
@@ -126,6 +126,7 @@ interface StoreContextType {
   setActiveStaff: (staff: StaffUser | null) => void;
   resetToDemo: () => void;
   updateStoreDetails: (details: Partial<Store>) => void;
+  updateStore: (details: Partial<Store>) => void;
   // Backup & Recovery Operations (Part 08)
   exportStoreData: () => StoreBackupPayload;
   downloadBackup: () => void;
@@ -1711,15 +1712,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return cancelled;
   };
 
-  const updateStoreDetails = (details: Partial<Store>) => {
-    const updatedStore = {
-      ...store,
-      ...details,
-      updatedAt: new Date().toISOString(),
-    };
-    setStore(updatedStore);
-    FirebaseService.syncStore(updatedStore);
-  };
+  const updateStoreDetails = useCallback((details: Partial<Store>) => {
+    setStore((prev) => {
+      const updatedStore = {
+        ...prev,
+        ...details,
+        updatedAt: new Date().toISOString(),
+      };
+      FirebaseService.syncStore(updatedStore);
+      return updatedStore;
+    });
+  }, []);
 
   const resetToDemo = () => {
     setStore(INITIAL_STORE);
@@ -1859,6 +1862,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveStaff,
         resetToDemo,
         updateStoreDetails,
+        updateStore: updateStoreDetails,
         exportStoreData,
         downloadBackup,
         restoreStoreData,
