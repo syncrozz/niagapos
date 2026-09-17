@@ -192,16 +192,16 @@ export class CsvService {
       ],
     ];
 
-    this.downloadCsv('kedai_papa_products_template.csv', headers, sampleRows);
+    this.downloadCsv('niagapos_products_template.csv', headers, sampleRows);
   }
 
   /**
    * Exports Products catalogue to CSV with Image URL support and standard backup filename.
-   * Complies with Kedai PAPA / NiagaPOS specifications:
+   * Complies with NiagaPOS specifications:
    * - Includes Image URL (imageUrl) for every product
    * - Preserves all existing product fields
    * - Clear, consistent CSV format
-   * - Generates backup filename: kedai_papa_products_backup_YYYY-MM-DD.csv
+   * - Generates backup filename: niagapos_products_backup_YYYY-MM-DD.csv
    */
   public static exportProducts(products: Product[], customFilename?: string): void {
     const headers = [
@@ -233,7 +233,7 @@ export class CsvService {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
     const dateStr = `${yyyy}-${mm}-${dd}`;
-    const filename = customFilename || `kedai_papa_products_backup_${dateStr}.csv`;
+    const filename = customFilename || `niagapos_products_backup_${dateStr}.csv`;
     this.downloadCsv(filename, headers, rows);
   }
 

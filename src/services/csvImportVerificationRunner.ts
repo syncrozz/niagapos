@@ -798,8 +798,8 @@ export class CsvImportVerificationRunner {
       const yyyy = now.getFullYear();
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const dd = String(now.getDate()).padStart(2, '0');
-      const expectedFilename = `kedai_papa_products_backup_${yyyy}-${mm}-${dd}.csv`;
-      const filenameRegex = /^kedai_papa_products_backup_\d{4}-\d{2}-\d{2}\.csv$/;
+      const expectedFilename = `niagapos_products_backup_${yyyy}-${mm}-${dd}.csv`;
+      const filenameRegex = /^niagapos_products_backup_\d{4}-\d{2}-\d{2}\.csv$/;
 
       const passed =
         valid1.isValid &&
@@ -821,7 +821,7 @@ export class CsvImportVerificationRunner {
         category: 'Validation',
         status: passed ? 'PASSED' : 'FAILED',
         passed,
-        message: 'URL validator strictly validates HTTP/HTTPS/relative paths and generates backup filename kedai_papa_products_backup_YYYY-MM-DD.csv.',
+        message: 'URL validator strictly validates HTTP/HTTPS/relative paths and generates backup filename niagapos_products_backup_YYYY-MM-DD.csv.',
         details: `Backup pattern: ${expectedFilename}`,
       });
     } catch (err: any) {
