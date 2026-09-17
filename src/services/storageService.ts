@@ -42,6 +42,22 @@ export const STORAGE_KEYS = {
   LAST_SYNC_METADATA: 'niagapos_v2_last_sync_metadata_v1',
 } as const;
 
+/**
+ * Returns isolated storage keys scoped strictly to a specific tenant workspace.
+ */
+export function getWorkspaceStorageKeys(workspaceId: string) {
+  const prefix = `niagapos_ws_${workspaceId}`;
+  return {
+    STORE: `${prefix}_store_v1`,
+    PRODUCTS: `${prefix}_products_v1`,
+    MOVEMENTS: `${prefix}_movements_v1`,
+    SALES: `${prefix}_sales_v1`,
+    CUSTOMERS: `${prefix}_customers_v1`,
+    SUPPLIERS: `${prefix}_suppliers_v1`,
+    PURCHASES: `${prefix}_purchases_v1`,
+  };
+}
+
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
@@ -121,7 +137,7 @@ export class StorageService {
   }): StoreBackupPayload {
     return {
       schemaVersion: CURRENT_SCHEMA_VERSION,
-      system: 'Kedai PAPA POS',
+      system: 'NiagaPOS',
       exportedAt: new Date().toISOString(),
       store: data.store,
       products: data.products,
@@ -196,7 +212,7 @@ export class StorageService {
 
     const validPayload: StoreBackupPayload = {
       schemaVersion: obj.schemaVersion,
-      system: obj.system || 'Kedai PAPA POS',
+      system: obj.system || 'NiagaPOS',
       exportedAt: obj.exportedAt || new Date().toISOString(),
       store: obj.store,
       products: obj.products,

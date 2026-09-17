@@ -130,10 +130,10 @@ export const VerificationAuditSuite: React.FC = () => {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
             <h2 className="font-bold text-base tracking-tight">
-              Kedai PAPA POS — Continuous Verification &amp; Audit Suite
+              NiagaPOS — Continuous Verification &amp; Audit Suite
             </h2>
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-              Parts 01.5 &ndash; 08 Production Ready
+              Parts 01.5 &ndash; 09 Production Ready
             </span>
           </div>
           <p className="text-xs text-stone-300 max-w-2xl">

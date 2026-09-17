@@ -2,58 +2,194 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
+    // ----------------------------------------------------
+    // HELPER FUNCTIONS
+    // ----------------------------------------------------
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    match /stores/{storeId} {
-      allow read: if true;
-      allow write: if isValidId(storeId);
+    // Master Admin verification (checked against tamper-proof collection or claim)
+    function isMasterAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'MASTER_ADMIN' ||
+        exists(/databases/$(database)/documents/platform_admins/$(request.auth.uid))
+      );
     }
 
-    match /products/{productId} {
-      allow read: if true;
-      allow write: if isValidId(productId);
+    // Live Member Document lookup to prevent stale token exploit
+    function getMemberDoc(workspaceId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
     }
 
-    match /inventory_movements/{movementId} {
-      allow read: if true;
-      allow write: if isValidId(movementId);
+    function isWorkspaceMember(workspaceId) {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)) &&
+        getMemberDoc(workspaceId).data.status == 'ACTIVE'
+      );
     }
 
-    match /sales/{saleId} {
-      allow read: if true;
-      allow write: if isValidId(saleId);
+    function getMemberRole(workspaceId) {
+      return getMemberDoc(workspaceId).data.role;
     }
 
-    match /suppliers/{supplierId} {
-      allow read: if true;
-      allow write: if isValidId(supplierId);
+    function isWorkspaceOwner(workspaceId) {
+      return isWorkspaceMember(workspaceId) && getMemberRole(workspaceId) == 'OWNER';
     }
 
-    match /purchases/{purchaseId} {
-      allow read: if true;
-      allow write: if isValidId(purchaseId);
+    function isWorkspaceStaff(workspaceId) {
+      return isWorkspaceMember(workspaceId) && (getMemberRole(workspaceId) in ['STAFF', 'OWNER']);
     }
 
-    match /customers/{customerId} {
-      allow read: if true;
-      allow write: if isValidId(customerId);
+    // Live Workspace Document & Trial Lifecycle check
+    function getWorkspaceData(workspaceId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)).data;
     }
 
-    match /loyalty_ledger/{ledgerId} {
-      allow read: if true;
-      allow write: if isValidId(ledgerId);
+    function isWorkspaceOperational(workspaceId) {
+      let ws = getWorkspaceData(workspaceId);
+      return ws.status in ['ACTIVE', 'TRIAL_ENDING', 'GRACE_PERIOD'] &&
+             request.time < ws.gracePeriodEndsAt;
     }
 
-    match /staff_users/{staffId} {
-      allow read: if true;
-      allow write: if isValidId(staffId);
+    // Payload verification: internal relational IDs must match URL workspace parameter
+    function matchesWorkspace(workspaceId) {
+      return !('workspaceId' in request.resource.data) || request.resource.data.workspaceId == workspaceId;
     }
 
-    match /system/{docId} {
+    // ----------------------------------------------------
+    // PLATFORM-WIDE COLLECTIONS
+    // ----------------------------------------------------
+
+    // Platform Admins: Only accessible and modifiable by existing Master Admins
+    match /platform_admins/{adminUid} {
+      allow read, write: if isMasterAdmin();
+    }
+
+    // Slug Registry: Publicly readable for URL resolution; writable ONLY by Master Admin
+    match /workspace_slugs/{slug} {
       allow read: if true;
-      allow write: if isValidId(docId);
+      allow write: if isMasterAdmin();
+    }
+
+    // ----------------------------------------------------
+    // WORKSPACES ROOT & TENANT SUBCOLLECTIONS
+    // ----------------------------------------------------
+
+    match /workspaces/{workspaceId} {
+      allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+      // Workspace creation, suspension, trial adjustment, and deletion are MASTER ADMIN ONLY
+      allow write: if isMasterAdmin();
+
+      // 1. MEMBERS COLLECTION (Role Escalation Prevention)
+      match /members/{memberUid} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+
+        // CREATE: Master Admin can create any role.
+        // Owner can ONLY create members with role == 'STAFF' (cannot create OWNER or MASTER_ADMIN).
+        allow create: if isMasterAdmin() || (
+          isWorkspaceOwner(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          request.resource.data.role == 'STAFF' &&
+          request.resource.data.status in ['ACTIVE', 'INVITED'] &&
+          memberUid != request.auth.uid // Cannot create own membership
+        );
+
+        // UPDATE: Master Admin can update any.
+        // Owner can update staff members, but CANNOT change role to 'OWNER' or 'MASTER_ADMIN',
+        // and CANNOT modify their own membership document.
+        allow update: if isMasterAdmin() || (
+          isWorkspaceOwner(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          resource.data.role == 'STAFF' &&
+          request.resource.data.role == 'STAFF' && // Role must remain STAFF
+          memberUid != request.auth.uid // Cannot escalate or tamper with own record
+        );
+
+        // DELETE: Master Admin can delete any. Owner can ONLY delete STAFF members.
+        allow delete: if isMasterAdmin() || (
+          isWorkspaceOwner(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          resource.data.role == 'STAFF' &&
+          memberUid != request.auth.uid
+        );
+      }
+
+      // 2. STORE CONFIGURATION
+      match /store/{configDoc} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+        // Only Owner & Master Admin can modify store settings
+        allow write: if isMasterAdmin() || (
+          isWorkspaceOwner(workspaceId) &&
+          isWorkspaceOperational(workspaceId)
+        );
+      }
+
+      // 3. FINANCIAL & SUPPLIER SENSITIVE DATA (Staff Blocked)
+      match /purchases/{purchaseId} {
+        allow read: if isMasterAdmin() || isWorkspaceOwner(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceOwner(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
+
+      match /suppliers/{supplierId} {
+        allow read: if isMasterAdmin() || isWorkspaceOwner(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceOwner(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
+
+      // 4. OPERATIONAL STORE DATA (Staff & Owner)
+      match /products/{productId} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceStaff(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
+
+      match /sales/{saleId} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceStaff(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
+
+      match /inventory_movements/{movementId} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceStaff(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
+
+      match /customers/{customerId} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceStaff(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
+
+      match /loyalty_ledger/{ledgerId} {
+        allow read: if isMasterAdmin() || isWorkspaceMember(workspaceId);
+        allow write: if isMasterAdmin() || (
+          isWorkspaceStaff(workspaceId) &&
+          isWorkspaceOperational(workspaceId) &&
+          matchesWorkspace(workspaceId)
+        );
+      }
     }
   }
 }

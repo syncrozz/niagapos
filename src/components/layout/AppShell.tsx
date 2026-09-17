@@ -216,6 +216,21 @@ export const AppShell: React.FC<AppShellProps> = ({
                 )}
               </div>
 
+              {/* Master Admin Console Direct Access */}
+              <button
+                type="button"
+                id="header-master-admin-btn"
+                onClick={() => {
+                  window.history.pushState({}, '', '/admin');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
+                className="hidden lg:flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-200 border border-stone-700 transition shadow-2xs cursor-pointer"
+                title="Buka Konsol Master Admin NiagaPOS V2 (Pendaftaran Klien & Onboarding)"
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="whitespace-nowrap">Konsol Klien</span>
+              </button>
+
               {/* Akses Mod Admin */}
               <button
                 type="button"

@@ -853,13 +853,13 @@ export const PosPage: React.FC = () => {
                           <div className={`w-full h-full rounded-lg flex flex-col items-center justify-center p-2 ${pastel.cardBg}`}>
                             <img
                               src={KEDAI_PAPA_ASSETS.logoSvg}
-                              alt="Kedai PAPA"
+                              alt="NiagaPOS"
                               onError={(e) => {
                                 (e.currentTarget as HTMLImageElement).src = KEDAI_PAPA_ASSETS.local.logoSvg;
                               }}
                               className="w-8 h-8 object-contain opacity-60"
                             />
-                            <span className="text-[10px] text-stone-400 font-medium mt-1">Kedai PAPA</span>
+                            <span className="text-[10px] text-stone-400 font-medium mt-1">NiagaPOS</span>
                           </div>
                         )}
                       </div>
