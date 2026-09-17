@@ -12,13 +12,12 @@ import {
   Store as StoreIcon,
   Menu,
   X,
-  UserCheck,
   Shield,
   ShieldCheck,
   Cloud,
   CloudOff,
   RefreshCw,
-  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { ActivePage } from '../../types';
 import { useStore } from '../../context/StoreContext';
@@ -156,20 +155,25 @@ export const AppShell: React.FC<AppShellProps> = ({
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
+                const isSettings = item.id === 'settings';
                 return (
                   <button
                     key={item.id}
                     id={`nav-item-${item.id}`}
                     type="button"
                     onClick={() => handleNavClick(item.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs lg:text-sm transition-all ${
+                    title={isSettings ? 'Tetapan (Settings)' : item.label}
+                    aria-label={item.label}
+                    className={`flex items-center justify-center rounded-lg text-xs lg:text-sm transition-all ${
+                      isSettings ? 'p-2' : 'gap-1.5 px-2.5 py-1.5'
+                    } ${
                       isActive
                         ? 'bg-emerald-600 text-white shadow-xs font-semibold'
                         : 'text-stone-600 hover:text-emerald-800 hover:bg-emerald-50/70 font-medium'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                    <span>{item.label}</span>
+                    {!isSettings && <span>{item.label}</span>}
                   </button>
                 );
               })}
@@ -220,22 +224,34 @@ export const AppShell: React.FC<AppShellProps> = ({
               {/* PWA Install Action */}
               <PWAInstallButton variant="header" />
 
-              {/* Master Admin Console Direct Access */}
+              {/* Mobile Konsol Klien Quick Access */}
+              <button
+                type="button"
+                id="mobile-header-konsol-btn"
+                onClick={() => onNavigate('konsol')}
+                className="sm:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-emerald-300 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
+                title="Buka Konsol Klien NiagaPOS (Master Admin)"
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="whitespace-nowrap font-medium text-[11px]">Konsol</span>
+              </button>
+
+              {/* Master Admin Console Direct Access (Tablet & Desktop) */}
               <button
                 type="button"
                 id="header-master-admin-btn"
-                onClick={() => {
-                  window.history.pushState({}, '', '/admin');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-                className="hidden lg:flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-200 border border-stone-700 transition shadow-2xs cursor-pointer"
+                onClick={() => onNavigate('konsol')}
+                className="hidden sm:flex items-center justify-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-100 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
                 title="Buka Konsol Master Admin NiagaPOS V2 (Pendaftaran Klien & Onboarding)"
               >
-                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="whitespace-nowrap">Konsol Klien</span>
+                <span className="hidden xl:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/60 font-semibold">
+                  ADMIN
+                </span>
               </button>
 
-              {/* Akses Mod Admin */}
+              {/* Admin Mode */}
               <button
                 type="button"
                 id="header-admin-mode-btn"
@@ -251,32 +267,20 @@ export const AppShell: React.FC<AppShellProps> = ({
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-1 ring-emerald-400/30'
                     : 'bg-stone-800 hover:bg-stone-900 text-white'
                 }`}
-                title={isAdminMode ? 'Admin Mode Aktif. Klik untuk keluar dari Mod Admin' : 'Akses Mod Admin'}
+                title={isAdminMode ? 'Admin Mode On. Klik untuk keluar dari Admin Mode' : 'Admin Mode'}
               >
                 {isAdminMode ? (
                   <>
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-100" />
-                    <span className="whitespace-nowrap">🟢 Admin Mode Aktif</span>
+                    <span className="whitespace-nowrap">Admin Mode On</span>
                   </>
                 ) : (
                   <>
                     <Shield className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="whitespace-nowrap">Akses Mod Admin</span>
+                    <span className="whitespace-nowrap">Admin Mode</span>
                   </>
                 )}
               </button>
-
-              {/* Role pill: [ ADMIN (Owner) ▼ ] */}
-              <div
-                id="header-user-role-pill"
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-50 border border-stone-200 text-xs text-stone-700 select-none shadow-2xs"
-              >
-                <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px]">
-                  <UserCheck className="w-3 h-3 text-emerald-700" />
-                </div>
-                <span className="font-semibold text-stone-900 uppercase">{currentUser.role} (Owner)</span>
-                <ChevronDown className="w-3 h-3 text-stone-400" />
-              </div>
             </div>
           </div>
         </div>
@@ -284,6 +288,33 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-stone-200 bg-white px-4 pt-2 pb-4 space-y-2 animate-in slide-in-from-top-2 duration-150">
+            {/* Featured Konsol Klien Quick Entry for Mobile */}
+            <button
+              type="button"
+              id="mobile-menu-konsol-klien-btn"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onNavigate('konsol');
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-stone-900 hover:bg-stone-950 text-white shadow-sm border border-stone-700 transition text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-xs text-white">Konsol Klien</span>
+                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Master Admin
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-400">Pendaftaran &amp; Pengurusan Workspace Klien</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-stone-400 shrink-0" />
+            </button>
+
             {/* Mobile Cloud Sync & Admin Controls */}
             <div className="pb-2 space-y-1.5 border-b border-stone-100">
               <button
@@ -332,12 +363,12 @@ export const AppShell: React.FC<AppShellProps> = ({
                 {isAdminMode ? (
                   <>
                     <ShieldCheck className="w-4 h-4 text-emerald-100" />
-                    <span>🟢 Admin Mode Aktif (Klik untuk Keluar)</span>
+                    <span>Admin Mode On (Klik untuk Keluar)</span>
                   </>
                 ) : (
                   <>
                     <Shield className="w-4 h-4 text-amber-400" />
-                    <span>Akses Mod Admin</span>
+                    <span>Admin Mode</span>
                   </>
                 )}
               </button>

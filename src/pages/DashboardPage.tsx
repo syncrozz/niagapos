@@ -16,6 +16,7 @@ import {
   Store as StoreIcon,
   Sparkles,
   CheckCircle2,
+  Building2,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { StatCard } from '../components/common/StatCard';
@@ -96,6 +97,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           >
             <Boxes className="w-4 h-4" />
             <span>Semak Stok</span>
+          </button>
+          <button
+            type="button"
+            id="dashboard-hero-open-konsol-btn"
+            onClick={() => onNavigate('konsol')}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-stone-900/80 hover:bg-stone-950 border border-stone-700/60 text-emerald-300 font-semibold text-xs sm:text-sm transition cursor-pointer shadow-xs"
+            title="Buka Konsol Master Admin NiagaPOS (Pengurusan Klien & Onboarding)"
+          >
+            <Building2 className="w-4 h-4 text-emerald-400" />
+            <span>Konsol Klien</span>
           </button>
         </div>
       </div>

@@ -32,6 +32,7 @@ import {
 import { WorkspaceService, PRODUCTION_DOMAIN } from '../services/workspaceService';
 import { AdminAuthService } from '../services/adminAuthService';
 import { CreateWorkspaceModal } from '../components/workspace/CreateWorkspaceModal';
+import { useStore } from '../context/StoreContext';
 import type { Workspace, ClientAccessDetails } from '../types/workspace';
 
 interface MasterAdminPageProps {
@@ -43,7 +44,8 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
   onExitAdmin,
   onSelectWorkspace,
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAdminMode } = useStore();
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(isAdminMode));
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
 
@@ -207,7 +209,20 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
                 autoFocus
                 placeholder="••••"
                 value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setPinInput(val);
+                  setPinError(null);
+                  if (val.length === 4) {
+                    const res = AdminAuthService.verifyPin(val);
+                    if (res.success) {
+                      setIsAuthenticated(true);
+                      setPinInput('');
+                    } else {
+                      setPinError(res.error || 'PIN tidak sah. Sila cuba lagi.');
+                    }
+                  }
+                }}
                 className="w-full text-center text-2xl tracking-[0.6em] font-mono bg-stone-950 border border-stone-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl py-3 text-white outline-none transition-all"
               />
             </div>
@@ -238,27 +253,27 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col">
       {/* Top Bar */}
-      <header className="border-b border-stone-800 bg-stone-900/60 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+      <header className="border-b border-stone-800 bg-stone-900/60 backdrop-blur-md px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0">
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold text-base text-white tracking-tight">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h1 className="font-bold text-sm sm:text-base text-white tracking-tight">
                 NiagaPOS V2 — Master Admin Console
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-stone-800 text-stone-300 border border-stone-700">
                 SES v4.4 Multi-Client
               </span>
             </div>
-            <p className="text-xs text-stone-400">
+            <p className="text-[11px] sm:text-xs text-stone-400">
               Pengurusan Klien, Pendaftaran Workspace, Jemputan Pemilik &amp; Kitaran Hayat Percubaan
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap ml-auto sm:ml-0">
           <button
             id="refresh-workspaces-btn"
             onClick={loadWorkspaces}

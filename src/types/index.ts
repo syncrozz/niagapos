@@ -224,7 +224,8 @@ export type ActivePage =
   | 'suppliers'
   | 'customers'
   | 'reports'
-  | 'settings';
+  | 'settings'
+  | 'konsol';
 
 export interface StoreBackupPayload {
   schemaVersion: number;

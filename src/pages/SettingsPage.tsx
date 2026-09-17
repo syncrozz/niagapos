@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Smartphone,
   Laptop,
+  Building2,
+  ExternalLink,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { UserRole, StaffRole, StaffUser } from '../types';
@@ -32,6 +34,7 @@ import { NIAGAPOS_ASSETS } from '../constants/branding';
 import { PWAInstallButton } from '../components/common/PWAInstallButton';
 import { StaffService } from '../services/staffService';
 import { StorageService, StoreBackupPayload } from '../services/storageService';
+import { pushRoute } from '../services/urlRouter';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -986,6 +989,43 @@ export const SettingsPage: React.FC = () => {
             <span className="text-stone-500 block text-[11px]">Customers</span>
             <span className="font-bold text-stone-900 font-mono text-sm">{customers.length}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Konsol Klien & Master Admin Access Card */}
+      <div className="bg-stone-900 rounded-xl border border-stone-800 p-6 shadow-sm text-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-sm text-white">
+                Konsol Klien NiagaPOS (Master Admin)
+              </h3>
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+                SES v4.4 Multi-Client
+              </span>
+            </div>
+            <p className="text-xs text-stone-400 mt-1 max-w-xl leading-relaxed">
+              Urus pendaftaran klien baharu, pengagihan workspace, pemantauan status percubaan kedai (Active / Trial Ending / Expired), dan jemputan onboarding pemilik kedai runcit.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            id="settings-open-master-admin-btn"
+            onClick={() => {
+              pushRoute('/admin');
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Buka Konsol Klien</span>
+            <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+          </button>
         </div>
       </div>
 

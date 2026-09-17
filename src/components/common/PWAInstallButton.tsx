@@ -41,11 +41,11 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           id="pwa-header-install-btn"
           onClick={handleInstallClick}
           disabled={isInstalling}
-          title="Pasang NiagaPOS ke Desktop, Android, atau iOS"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-linear-to-r from-blue-700 to-[#082f63] hover:from-blue-800 hover:to-[#06244f] transition shadow-2xs cursor-pointer border border-blue-600/50 ${className}`}
+          aria-label="Pasang Aplikasi NiagaPOS"
+          title="Pasang NiagaPOS ke Desktop, Android, atau iOS (PWA)"
+          className={`flex items-center justify-center p-2 rounded-lg text-white bg-linear-to-r from-blue-700 to-[#082f63] hover:from-blue-800 hover:to-[#06244f] transition shadow-2xs cursor-pointer border border-blue-600/50 shrink-0 ${className}`}
         >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Pasang PWA</span>
+          <Download className="w-4 h-4" />
         </button>
       )}
 

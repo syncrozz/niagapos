@@ -2,8 +2,26 @@
  * URL Slug Parser & Reserved Route Protection for NiagaPOS
  */
 
+export const MASTER_ADMIN_KEYWORDS = [
+  'admin',
+  'client',
+  'clients',
+  'klien',
+  'konsol',
+  'konsol-klien',
+  'master-admin',
+  'workspace-admin',
+];
+
 export const RESERVED_ROUTES = [
   'admin',
+  'client',
+  'clients',
+  'klien',
+  'konsol',
+  'konsol-klien',
+  'master-admin',
+  'workspace-admin',
   'login',
   'setup',
   'settings',
@@ -23,7 +41,7 @@ export const RESERVED_ROUTES = [
 export interface ParsedRoute {
   isMasterAdmin: boolean;
   workspaceSlug: string | null;
-  systemPage: 'pos' | 'products' | 'customers' | 'reports' | 'settings' | 'inventory' | 'suppliers' | 'purchases' | null;
+  systemPage: 'pos' | 'products' | 'customers' | 'reports' | 'settings' | 'inventory' | 'suppliers' | 'purchases' | 'konsol' | null;
   rawPath: string;
 }
 
@@ -38,6 +56,23 @@ export function isValidSlug(slug: string): boolean {
 }
 
 export function parseRoute(pathname: string = window.location.pathname): ParsedRoute {
+  // Support query parameter or hash triggers like ?admin=true, ?page=admin, ?konsol=true, #admin, #konsol
+  const searchStr = typeof window !== 'undefined' ? (window.location.search || '').toLowerCase() : '';
+  const hashStr = typeof window !== 'undefined' ? (window.location.hash || '').toLowerCase() : '';
+  if (
+    searchStr.includes('admin') ||
+    searchStr.includes('konsol') ||
+    hashStr.includes('admin') ||
+    hashStr.includes('konsol')
+  ) {
+    return {
+      isMasterAdmin: true,
+      workspaceSlug: null,
+      systemPage: 'konsol',
+      rawPath: pathname,
+    };
+  }
+
   const segments = pathname
     .split('/')
     .map((s) => s.trim())
@@ -54,12 +89,12 @@ export function parseRoute(pathname: string = window.location.pathname): ParsedR
 
   const first = segments[0].toLowerCase();
 
-  // Check if Master Admin route
-  if (first === 'admin') {
+  // Check if Master Admin / Konsol Klien route
+  if (MASTER_ADMIN_KEYWORDS.includes(first)) {
     return {
       isMasterAdmin: true,
       workspaceSlug: null,
-      systemPage: null,
+      systemPage: 'konsol',
       rawPath: pathname,
     };
   }

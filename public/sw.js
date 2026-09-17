@@ -1,5 +1,6 @@
-// NiagaPOS Service Worker (SES v4.5 Compliant)
-const CACHE_NAME = 'niagapos-pwa-v1';
+// NiagaPOS Service Worker (Network-First Strategy with Cache Invalidation)
+const CACHE_NAME = 'niagapos-pwa-v2.4';
+
 const ASSETS_TO_PRECACHE = [
   '/',
   '/index.html',
@@ -20,6 +21,8 @@ const ASSETS_TO_PRECACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Force active immediately
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_PRECACHE).catch((err) => {
@@ -27,44 +30,70 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
+// Network-First for HTML/JS/CSS navigation and code requests so updates are immediate
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // For app navigation and local scripts, use Network-First to ensure instant freshness
+  const isNavigation = event.request.mode === 'navigate';
+  const isLocalAsset = url.origin === self.location.origin;
+
+  if (isNavigation || isLocalAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache when offline
+          return caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            if (isNavigation) return caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first for external static logos/icons
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
+      return fetch(event.request).then((response) => {
+        if (response && response.status === 200) {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
-          return response;
-        })
-        .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        });
+        }
+        return response;
+      });
     })
   );
 });

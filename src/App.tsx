@@ -126,6 +126,16 @@ function MainAppContent() {
 
   const handleNavigate = (page: ActivePage) => {
     setActivePage(page);
+    if (page === 'konsol') {
+      pushRoute('/admin');
+      setRoute({
+        isMasterAdmin: true,
+        workspaceSlug: null,
+        systemPage: 'konsol',
+        rawPath: '/admin',
+      });
+      return;
+    }
     if (route.workspaceSlug) {
       pushRoute(`/${route.workspaceSlug}/${page}`);
     } else {
@@ -133,15 +143,17 @@ function MainAppContent() {
     }
   };
 
-  // 1. If path is /admin or Master Admin is requested
-  if (route.isMasterAdmin) {
+  // 1. If path is /admin or Master Admin / Konsol Klien is requested
+  if (route.isMasterAdmin || activePage === 'konsol') {
     return (
       <MasterAdminPage
         onExitAdmin={() => {
+          setActivePage('pos');
           pushRoute('/');
           setRoute(parseRoute('/'));
         }}
         onSelectWorkspace={(slug) => {
+          setActivePage('pos');
           pushRoute(`/${slug}/pos`);
           setRoute(parseRoute(`/${slug}/pos`));
         }}
