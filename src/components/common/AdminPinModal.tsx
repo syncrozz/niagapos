@@ -8,6 +8,7 @@ interface AdminPinModalProps {
   onClose: () => void;
   onSuccess: () => void;
   actionDescription?: string;
+  workspaceSlug?: string;
 }
 
 export const AdminPinModal: React.FC<AdminPinModalProps> = ({
@@ -15,6 +16,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
   onClose,
   onSuccess,
   actionDescription,
+  workspaceSlug,
 }) => {
   const [pin, setPin] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,11 +36,11 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
     }
   }, [isOpen]);
 
-  const handleValidate = (candidatePin: string) => {
+  const handleValidate = async (candidatePin: string) => {
     if (isVerifying) return;
     setIsVerifying(true);
 
-    const result = AdminAuthService.verifyPin(candidatePin);
+    const result = await AdminAuthService.verifyPinAsync(candidatePin, workspaceSlug);
 
     if (result.success) {
       setErrorMessage(null);
@@ -58,8 +60,8 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    // Strictly numeric only, max 4 digits
-    const digitsOnly = val.replace(/\D/g, '').slice(0, 4);
+    // Strictly numeric only, 4 to 6 digits
+    const digitsOnly = val.replace(/\D/g, '').slice(0, 6);
     setPin(digitsOnly);
     setErrorMessage(null);
 
@@ -75,10 +77,10 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
       onClose();
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (pin.length === 4) {
+      if (pin.length >= 4) {
         handleValidate(pin);
       } else if (pin.length > 0 && pin.length < 4) {
-        setErrorMessage('Sila masukkan 4-digit PIN keselamatan.');
+        setErrorMessage('Sila masukkan sekurang-kurangnya 4-digit PIN keselamatan.');
       }
     }
   };
@@ -165,7 +167,7 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
             </div>
           )}
 
-          {/* Single 4-digit PIN Password Input */}
+          {/* Single 4-6 digit PIN Password Input */}
           <div className="relative">
             <input
               ref={inputRef}
@@ -173,12 +175,12 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
               type="password"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={4}
+              maxLength={6}
               value={pin}
               disabled={lockout.locked || isVerifying}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Masukkan 4-digit PIN"
+              placeholder="Masukkan PIN (4-6 digit)"
               autoFocus
               autoComplete="off"
               className="w-full text-center text-lg tracking-[0.6em] font-mono px-4 py-3 rounded-xl border-2 border-stone-200 focus:border-stone-900 focus:outline-hidden focus:ring-4 focus:ring-stone-100 transition placeholder:tracking-normal placeholder:font-sans placeholder:text-sm placeholder:text-stone-400 text-stone-900 bg-stone-50/50 focus:bg-white disabled:bg-stone-100 disabled:text-stone-400 shadow-2xs"
@@ -197,11 +199,11 @@ export const AdminPinModal: React.FC<AdminPinModalProps> = ({
             <button
               type="submit"
               id="admin-pin-submit-btn"
-              disabled={lockout.locked || pin.length !== 4 || isVerifying}
+              disabled={lockout.locked || pin.length < 4 || isVerifying}
               className="w-2/3 py-2.5 text-xs font-semibold rounded-xl bg-stone-900 hover:bg-stone-800 active:scale-98 text-white transition disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
             >
               <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-              <span>🔑 Sahkan PIN Admin</span>
+              <span>🔑 Sahkan PIN</span>
             </button>
           </div>
         </form>

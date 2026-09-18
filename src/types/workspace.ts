@@ -22,6 +22,14 @@ export interface WorkspaceMember {
   inviteSentAt?: string;
 }
 
+export interface WorkspaceAuthConfigData {
+  pinHash: string;
+  salt: string;
+  pinVersion: number;
+  mustChangeDefaultPin: boolean;
+  updatedAt: string;
+}
+
 export interface Workspace {
   workspaceId: string;
   workspaceSlug: string;
@@ -38,6 +46,7 @@ export interface Workspace {
   createdAt: string;
   updatedAt: string;
   lastActiveAt?: string;
+  authConfig?: WorkspaceAuthConfigData;
   metricsSummary?: {
     productCount: number;
     saleCount: number;

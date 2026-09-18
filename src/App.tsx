@@ -320,7 +320,7 @@ function MainAppContent() {
   const renderActivePage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <DashboardPage onNavigate={handleNavigate} />;
+        return <DashboardPage onNavigate={handleNavigate} currentWorkspace={currentWorkspace} />;
       case 'products':
         return <ProductsPage />;
       case 'inventory':
@@ -338,7 +338,7 @@ function MainAppContent() {
       case 'settings':
         return <SettingsPage />;
       default:
-        return <DashboardPage onNavigate={handleNavigate} />;
+        return <DashboardPage onNavigate={handleNavigate} currentWorkspace={currentWorkspace} />;
     }
   };
 

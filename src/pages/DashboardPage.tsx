@@ -21,6 +21,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { StatCard } from '../components/common/StatCard';
 import { ActivePage, Product } from '../types';
+import type { Workspace } from '../types/workspace';
 import { ReportingService } from '../services/reportingService';
 import { InventoryService } from '../services/inventoryService';
 import { formatProfit, getProfitColorClass } from '../services/formatters';
@@ -28,9 +29,10 @@ import { NIAGAPOS_ASSETS } from '../constants/branding';
 
 interface DashboardPageProps {
   onNavigate: (page: ActivePage) => void;
+  currentWorkspace?: Workspace | null;
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, currentWorkspace }) => {
   const { store, products, sales } = useStore();
 
   // Grounded Part 04 KPI calculations
@@ -98,16 +100,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <Boxes className="w-4 h-4" />
             <span>Semak Stok</span>
           </button>
-          <button
-            type="button"
-            id="dashboard-hero-open-konsol-btn"
-            onClick={() => onNavigate('konsol')}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-stone-900/80 hover:bg-stone-950 border border-stone-700/60 text-emerald-300 font-semibold text-xs sm:text-sm transition cursor-pointer shadow-xs"
-            title="Buka Konsol Master Admin NiagaPOS (Pengurusan Klien & Onboarding)"
-          >
-            <Building2 className="w-4 h-4 text-emerald-400" />
-            <span>Konsol Klien</span>
-          </button>
+          {!currentWorkspace && (
+            <button
+              type="button"
+              id="dashboard-hero-open-konsol-btn"
+              onClick={() => onNavigate('konsol')}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-stone-900/80 hover:bg-stone-950 border border-stone-700/60 text-emerald-300 font-semibold text-xs sm:text-sm transition cursor-pointer shadow-xs"
+              title="Buka Konsol Master Admin NiagaPOS (Pengurusan Klien & Onboarding)"
+            >
+              <Building2 className="w-4 h-4 text-emerald-400" />
+              <span>Konsol Klien</span>
+            </button>
+          )}
         </div>
       </div>
 

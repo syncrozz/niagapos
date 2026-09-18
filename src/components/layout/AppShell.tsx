@@ -267,17 +267,19 @@ export const AppShell: React.FC<AppShellProps> = ({
               {/* PWA Install Action */}
               <PWAInstallButton variant="header" />
 
-              {/* Master Admin Console Direct Access */}
-              <button
-                type="button"
-                id="header-master-admin-btn"
-                onClick={() => onNavigate('konsol')}
-                className="flex items-center justify-center p-2 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-100 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
-                title="Buka Konsol Master Admin NiagaPOS V2 (Pendaftaran Klien & Onboarding)"
-                aria-label="Konsol Master Admin"
-              >
-                <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              </button>
+              {/* Master Admin Console Direct Access - Only visible on platform master view, hidden on client workspace */}
+              {!currentWorkspace && (
+                <button
+                  type="button"
+                  id="header-master-admin-btn"
+                  onClick={() => onNavigate('konsol')}
+                  className="flex items-center justify-center p-2 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-100 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
+                  title="Buka Konsol Master Admin NiagaPOS V2 (Pendaftaran Klien & Onboarding)"
+                  aria-label="Konsol Master Admin"
+                >
+                  <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                </button>
+              )}
 
               {/* Workspace PIN & Lock controls when inside a client workspace */}
               {currentWorkspace && (
@@ -308,31 +310,38 @@ export const AppShell: React.FC<AppShellProps> = ({
                 </div>
               )}
 
-              {/* Admin Mode */}
-              <button
-                type="button"
-                id="header-admin-mode-btn"
-                onClick={() => {
-                  if (isAdminMode) {
-                    exitAdminMode();
-                  } else {
-                    openPinModal();
-                  }
-                }}
-                className={`flex items-center justify-center p-2 rounded-lg text-xs font-semibold transition shadow-2xs cursor-pointer shrink-0 ${
-                  isAdminMode
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-1 ring-emerald-400/30'
-                    : 'bg-stone-800 hover:bg-stone-900 text-white'
-                }`}
-                title={isAdminMode ? 'Admin Mode On. Klik untuk keluar dari Admin Mode' : 'Admin Mode'}
-                aria-label={isAdminMode ? 'Admin Mode On' : 'Admin Mode'}
-              >
-                {isAdminMode ? (
-                  <ShieldCheck className="w-4 h-4 text-emerald-100" />
-                ) : (
-                  <Shield className="w-4 h-4 text-amber-400" />
-                )}
-              </button>
+              {/* Admin Mode - Hidden from client workspace unless Master Admin is actively unlocked */}
+              {(!currentWorkspace || isAdminMode) && (
+                <button
+                  type="button"
+                  id="header-admin-mode-btn"
+                  onClick={() => {
+                    if (isAdminMode) {
+                      exitAdminMode();
+                    } else {
+                      openPinModal();
+                    }
+                  }}
+                  className={`flex items-center justify-center p-2 rounded-lg text-xs font-semibold transition shadow-2xs cursor-pointer shrink-0 ${
+                    isAdminMode
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-1 ring-emerald-400/30'
+                      : 'bg-stone-800 hover:bg-stone-900 text-white'
+                  }`}
+                  title={isAdminMode ? 'Admin Mode On. Klik untuk keluar dari Admin Mode' : 'Admin Mode'}
+                  aria-label={isAdminMode ? 'Admin Mode On' : 'Admin Mode'}
+                >
+                  {isAdminMode ? (
+                    <div className="flex items-center gap-1">
+                      <ShieldCheck className="w-4 h-4 text-emerald-100" />
+                      {currentWorkspace && (
+                        <span className="text-[10px] font-semibold text-emerald-100 hidden xl:inline">Master Active</span>
+                      )}
+                    </div>
+                  ) : (
+                    <Shield className="w-4 h-4 text-amber-400" />
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -340,32 +349,34 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-stone-200 bg-white px-4 pt-2 pb-4 space-y-2 animate-in slide-in-from-top-2 duration-150">
-            {/* Featured Konsol Klien Quick Entry for Mobile */}
-            <button
-              type="button"
-              id="mobile-menu-konsol-klien-btn"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onNavigate('konsol');
-              }}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-stone-900 hover:bg-stone-950 text-white shadow-sm border border-stone-700 transition text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-xs text-white">Konsol Klien</span>
-                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      Master Admin
-                    </span>
+            {/* Featured Konsol Klien Quick Entry for Mobile - Only visible on platform master view, hidden on client workspace */}
+            {!currentWorkspace && (
+              <button
+                type="button"
+                id="mobile-menu-konsol-klien-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigate('konsol');
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-stone-900 hover:bg-stone-950 text-white shadow-sm border border-stone-700 transition text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" />
                   </div>
-                  <p className="text-[11px] text-stone-400">Pendaftaran &amp; Pengurusan Workspace Klien</p>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs text-white">Konsol Klien</span>
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Master Admin
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-400">Pendaftaran &amp; Pengurusan Workspace Klien</p>
+                  </div>
                 </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-400 shrink-0" />
-            </button>
+                <ChevronRight className="w-4 h-4 text-stone-400 shrink-0" />
+              </button>
+            )}
 
             {/* Mobile Cloud Sync & Admin Controls */}
             <div className="pb-2 space-y-1.5 border-b border-stone-100">
@@ -397,33 +408,36 @@ export const AppShell: React.FC<AppShellProps> = ({
                 </span>
               </button>
 
-              <button
-                type="button"
-                id="mobile-admin-mode-btn"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  if (isAdminMode) {
-                    exitAdminMode();
-                  } else {
-                    openPinModal();
-                  }
-                }}
-                className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-white shadow-2xs ${
-                  isAdminMode ? 'bg-emerald-600' : 'bg-stone-900'
-                }`}
-              >
-                {isAdminMode ? (
-                  <>
-                    <ShieldCheck className="w-4 h-4 text-emerald-100" />
-                    <span>Admin Mode On (Klik untuk Keluar)</span>
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-4 h-4 text-amber-400" />
-                    <span>Admin Mode</span>
-                  </>
-                )}
-              </button>
+              {/* Admin Mode - Hidden on client workspace unless Master Admin is active */}
+              {(!currentWorkspace || isAdminMode) && (
+                <button
+                  type="button"
+                  id="mobile-admin-mode-btn"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (isAdminMode) {
+                      exitAdminMode();
+                    } else {
+                      openPinModal();
+                    }
+                  }}
+                  className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-white shadow-2xs ${
+                    isAdminMode ? 'bg-emerald-600' : 'bg-stone-900'
+                  }`}
+                >
+                  {isAdminMode ? (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-emerald-100" />
+                      <span>Admin Mode On (Klik untuk Keluar)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4 text-amber-400" />
+                      <span>Admin Mode</span>
+                    </>
+                  )}
+                </button>
+              )}
               <div className="pt-2">
                 <PWAInstallButton variant="sidebar" />
               </div>

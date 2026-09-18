@@ -9,6 +9,7 @@ import {
   initWorkspaceAuth,
   getPublicAuthState,
   getAuditLogs,
+  generateToken,
   verifyToken,
   checkLockout,
 } from './server/auth.ts';
@@ -221,20 +222,18 @@ async function startServer() {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.body?.token;
     const { workspaceSlug, currentPin, newPin, confirmPin } = req.body || {};
 
-    if (!token) {
-      res.status(401).json({ success: false, error: 'Kebenaran sesi diperlukan.' });
+    if (!workspaceSlug || !currentPin || !newPin || !confirmPin) {
+      res.status(400).json({ success: false, error: 'Sila lengkapkan semua medan PIN dan slug workspace.' });
       return;
     }
 
-    const decoded = verifyToken<{ workspaceSlug: string; role: string }>(token);
-    if (!decoded || decoded.role !== 'CLIENT' || decoded.workspaceSlug !== (workspaceSlug || '').toLowerCase()) {
-      res.status(403).json({ success: false, error: 'Sesi tidak sah untuk mengemas kini PIN workspace ini.' });
-      return;
-    }
-
-    if (!currentPin || !newPin || !confirmPin) {
-      res.status(400).json({ success: false, error: 'Sila lengkapkan semua medan PIN.' });
-      return;
+    // If a valid server token is provided, verify tenant scope
+    if (token && !token.startsWith('local_')) {
+      const decoded = verifyToken<{ workspaceSlug: string; role: string }>(token);
+      if (decoded && decoded.workspaceSlug !== (workspaceSlug || '').toLowerCase() && decoded.role !== 'MASTER_ADMIN') {
+        res.status(403).json({ success: false, error: 'Sesi tidak sah untuk mengemas kini PIN workspace ini.' });
+        return;
+      }
     }
 
     const result = changeClientPin(workspaceSlug, currentPin, newPin, confirmPin);
@@ -243,7 +242,30 @@ async function startServer() {
       return;
     }
 
-    res.json(result);
+    // Generate fresh session token for the client
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+    const freshToken = generateToken({
+      workspaceId: result.authConfig?.workspaceId || `ws_${workspaceSlug.toLowerCase()}`,
+      workspaceSlug: workspaceSlug.toLowerCase(),
+      role: 'CLIENT',
+      pinVersion: result.authConfig?.pinVersion || 2,
+      exp: expiresAt,
+    });
+
+    res.json({
+      ...result,
+      session: {
+        token: freshToken,
+        workspaceId: result.authConfig?.workspaceId || `ws_${workspaceSlug.toLowerCase()}`,
+        workspaceSlug: workspaceSlug.toLowerCase(),
+        workspaceName: workspaceSlug,
+        role: 'CLIENT',
+        isPinEnabled: true,
+        mustChangeDefaultPin: false,
+        pinVersion: result.authConfig?.pinVersion || 2,
+        expiresAt,
+      },
+    });
   });
 
   // Initialize workspace PIN (called on workspace creation)

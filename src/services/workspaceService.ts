@@ -158,7 +158,70 @@ export class WorkspaceService {
         all.push(workspace);
       }
       this.saveWorkspacesLocal(all);
+
+      if (workspace.authConfig && typeof localStorage !== 'undefined') {
+        try {
+          const cfgKey = `np_auth_cfg_${workspace.workspaceSlug.toLowerCase()}`;
+          localStorage.setItem(cfgKey, JSON.stringify({
+            workspaceSlug: workspace.workspaceSlug.toLowerCase(),
+            ...workspace.authConfig,
+          }));
+        } catch {}
+      }
     } catch {}
+  }
+
+  /**
+   * Updates PIN authentication configuration for a workspace across Firestore and local storage.
+   */
+  public static async updateWorkspaceAuthConfig(
+    workspaceSlug: string,
+    authConfig: {
+      pinHash: string;
+      salt: string;
+      pinVersion: number;
+      mustChangeDefaultPin: boolean;
+      updatedAt: string;
+    }
+  ): Promise<boolean> {
+    const clean = workspaceSlug.trim().toLowerCase();
+    const all = this.getAllWorkspacesLocal();
+    const index = all.findIndex((w) => w.workspaceSlug.toLowerCase() === clean);
+
+    if (index !== -1) {
+      all[index].authConfig = authConfig;
+      all[index].updatedAt = new Date().toISOString();
+      this.saveWorkspacesLocal(all);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(`np_auth_cfg_${clean}`, JSON.stringify({
+          workspaceSlug: clean,
+          ...authConfig,
+        }));
+      } catch {}
+    }
+
+    const db = FirebaseService.getDb();
+    if (db) {
+      try {
+        let wsId = index !== -1 ? all[index].workspaceId : null;
+        if (!wsId) {
+          const ws = await this.getWorkspaceBySlugAsync(clean);
+          wsId = ws?.workspaceId || `ws_${clean}`;
+        }
+        const wsRef = doc(db, 'workspaces', wsId);
+        await setDoc(wsRef, {
+          authConfig: this.sanitize(authConfig),
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        return true;
+      } catch (err) {
+        console.warn('[WorkspaceService] Firestore updateWorkspaceAuthConfig warning:', err);
+      }
+    }
+    return true;
   }
 
   /**

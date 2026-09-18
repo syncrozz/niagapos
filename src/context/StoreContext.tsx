@@ -680,7 +680,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const enterAdminMode = (pin: string) => {
-    const res = AdminAuthService.verifyPin(pin);
+    const activeSlug = AdminAuthService.detectActiveWorkspaceSlug() || undefined;
+    const res = AdminAuthService.verifyPin(pin, activeSlug);
     if (res.success) {
       setIsAdminMode(true);
       setIsPinModalOpen(false);
@@ -2117,6 +2118,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }}
         actionDescription={adminActionDesc}
+        workspaceSlug={AdminAuthService.detectActiveWorkspaceSlug() || undefined}
       />
     </StoreContext.Provider>
   );

