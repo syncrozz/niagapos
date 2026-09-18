@@ -190,6 +190,12 @@ function MainAppContent() {
       document.title = 'Konsol Master Admin — NiagaPOS V2';
     } else {
       document.title = 'NiagaPOS';
+      if (store.name !== 'NiagaPOS') {
+        updateStoreDetails({
+          name: 'NiagaPOS',
+          code: 'NP-01',
+        });
+      }
     }
   }, [currentWorkspace, route.isMasterAdmin, store.name, updateStoreDetails]);
 

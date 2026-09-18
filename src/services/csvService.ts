@@ -24,9 +24,13 @@ import {
   MasterCatalogSyncValidationResult,
   MasterSyncProductRow,
   MasterSyncMissingProduct,
+  StaffRole,
 } from '../types';
 import { SmartInputService } from './smartInputService';
 import { ProductService } from './productService';
+import { CreateSupplierInput, UpdateSupplierInput, SupplierService } from './supplierService';
+import { CreateCustomerInput, UpdateCustomerInput, CustomerService } from './customerService';
+import { CreateStaffInput, UpdateStaffInput, StaffService } from './staffService';
 
 export interface CsvImportValidationResult<T> {
   totalRows: number;
@@ -40,6 +44,32 @@ export interface CsvImportValidationResult<T> {
 
 export type { CsvImportMode };
 export type CsvRowAction = 'NEW' | 'UPDATE' | 'SKIP' | 'INVALID';
+export type CsvEntityRowAction = 'NEW' | 'UPDATE' | 'INVALID';
+
+export interface CsvGenericEntityRow<T> {
+  rowNumber: number;
+  action: CsvEntityRowAction;
+  code: string;
+  title: string;
+  subtitle?: string;
+  tag?: string;
+  reason: string;
+  existingId?: string;
+  payload: T;
+  rawRow: Record<string, string>;
+}
+
+export interface CsvEntityUpsertValidationResult<T, U = Partial<T>> {
+  totalRows: number;
+  newCount: number;
+  updateCount: number;
+  invalidCount: number;
+  rows: CsvGenericEntityRow<any>[];
+  newItems: T[];
+  updateItems: { id: string; updates: U }[];
+  errors: { rowNumber: number; reason: string; rawRow: Record<string, string> }[];
+  isValid: boolean;
+}
 
 export interface CsvProductImportRow {
   rowNumber: number;
@@ -300,6 +330,130 @@ export class CsvService {
 
     const dateStr = new Date().toISOString().slice(0, 10);
     this.downloadCsv(`niagapos_v2_customers_${dateStr}.csv`, headers, rows);
+  }
+
+  /**
+   * Exports Staff Users (Pekerja) to CSV.
+   */
+  public static exportStaff(staffUsers: StaffUser[]): void {
+    const headers = [
+      'Staff Code',
+      'Name',
+      'Role',
+      'Status',
+    ];
+
+    const rows = staffUsers.map((s) => [
+      s.staffCode || s.userCode || '',
+      s.name,
+      s.role,
+      s.active ? 'ACTIVE' : 'INACTIVE',
+    ]);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    this.downloadCsv(`niagapos_v2_staff_${dateStr}.csv`, headers, rows);
+  }
+
+  /**
+   * Generates and downloads a standardized CSV template for supplier import.
+   */
+  public static downloadSuppliersCsvTemplate(): void {
+    const headers = [
+      'Supplier Code',
+      'Supplier Name',
+      'Contact Person',
+      'Phone',
+      'Email',
+      'Address',
+      'Status',
+    ];
+
+    const sampleRows = [
+      [
+        'SUP-001',
+        'Pembekal Makanan Segar Sdn Bhd',
+        'En. Ahmad Farhan',
+        '012-3456789',
+        'ahmad@segar.com.my',
+        'No 12 Jalan Industri 3, Shah Alam, Selangor',
+        'ACTIVE',
+      ],
+      [
+        'SUP-002',
+        'Pengedar Minuman Nusantara',
+        'Pn. Siti Rahmah',
+        '019-8765432',
+        'sales@nusantara.my',
+        'Kawasan Perindustrian Nilai, Negeri Sembilan',
+        'ACTIVE',
+      ],
+    ];
+
+    this.downloadCsv('niagapos_suppliers_template.csv', headers, sampleRows);
+  }
+
+  /**
+   * Generates and downloads a standardized CSV template for customer import.
+   */
+  public static downloadCustomersCsvTemplate(): void {
+    const headers = [
+      'Customer Code',
+      'Customer Name',
+      'Phone',
+      'Email',
+      'Notes',
+      'Status',
+    ];
+
+    const sampleRows = [
+      [
+        'CUS-000001',
+        'Ali bin Hassan',
+        '012-3456789',
+        'ali.hassan@example.com',
+        'Pelanggan VIP Tetap',
+        'ACTIVE',
+      ],
+      [
+        'CUS-000002',
+        'Noraini binti Ismail',
+        '017-9876543',
+        'noraini@example.com',
+        'Taman Melawati',
+        'ACTIVE',
+      ],
+    ];
+
+    this.downloadCsv('niagapos_customers_template.csv', headers, sampleRows);
+  }
+
+  /**
+   * Generates and downloads a standardized CSV template for staff import.
+   */
+  public static downloadStaffCsvTemplate(): void {
+    const headers = [
+      'Staff Code',
+      'Name',
+      'Role',
+      'Status',
+    ];
+
+    const sampleRows = [
+      [
+        'STF-001',
+        'Nurul Izzah',
+        'CASHIER',
+        'ACTIVE',
+      ],
+      [
+        'STF-002',
+        'Khairul Azman',
+        'MANAGER',
+        'ACTIVE',
+      ],
+    ];
+
+    this.downloadCsv('niagapos_staff_template.csv', headers, sampleRows);
   }
 
   /**
@@ -1134,6 +1288,486 @@ export class CsvService {
       removedCount,
       rows,
       missingProducts,
+      errors,
+      isValid: invalidCount === 0,
+    };
+  }
+
+  /**
+   * Validates suppliers from imported CSV with upsert support.
+   */
+  public static validateSuppliersUpsert(
+    csvRows: Record<string, string>[],
+    existingSuppliers: Supplier[]
+  ): CsvEntityUpsertValidationResult<CreateSupplierInput, UpdateSupplierInput> {
+    const existingCodeMap = new Map<string, Supplier>();
+    const existingNameMap = new Map<string, Supplier>();
+
+    existingSuppliers.forEach((s) => {
+      if (s.supplierCode) existingCodeMap.set(SmartInputService.normalizeCode(s.supplierCode), s);
+      if (s.supplierName) existingNameMap.set(s.supplierName.trim().toLowerCase(), s);
+    });
+
+    const seenBatchCodes = new Set<string>();
+    const seenBatchNames = new Set<string>();
+
+    const rows: CsvGenericEntityRow<any>[] = [];
+    const newItems: CreateSupplierInput[] = [];
+    const updateItems: { id: string; updates: UpdateSupplierInput }[] = [];
+    const errors: { rowNumber: number; reason: string; rawRow: Record<string, string> }[] = [];
+
+    csvRows.forEach((row, index) => {
+      const rowNumber = index + 2;
+
+      const findVal = (keyPattern: RegExp, excludePattern?: RegExp) => {
+        const matchingKey = Object.keys(row).find((k) => {
+          if (!keyPattern.test(k)) return false;
+          if (excludePattern && excludePattern.test(k)) return false;
+          return true;
+        });
+        return matchingKey ? row[matchingKey].trim() : '';
+      };
+
+      const rawCode = findVal(/supplier.*code|code|kod/i);
+      const rawName = findVal(/supplier.*name|name|nama|syarikat|company/i);
+      const rawContact = findVal(/contact|wakil|person|pegawai/i);
+      const rawPhone = findVal(/phone|tel|telefon|hp|mobile/i);
+      const rawEmail = findVal(/email|emel/i);
+      const rawAddress = findVal(/address|alamat/i);
+      const rawNotes = findVal(/note|nota|catatan/i);
+      const rawStatus = findVal(/status|active|aktif/i);
+
+      if (!rawName) {
+        rows.push({
+          rowNumber,
+          action: 'INVALID',
+          code: rawCode || '-',
+          title: 'Tidak Sah (Nama Tiada)',
+          subtitle: rawPhone || rawEmail || '-',
+          reason: 'Nama pembekal wajib diisi.',
+          payload: null,
+          rawRow: row,
+        });
+        errors.push({ rowNumber, reason: 'Nama pembekal wajib diisi.', rawRow: row });
+        return;
+      }
+
+      const normCode = rawCode ? SmartInputService.normalizeCode(rawCode) : '';
+      const normName = rawName.toLowerCase();
+      const isActive = !/inactive|tidak|palsu|false|0/i.test(rawStatus);
+
+      // Check if matches existing supplier
+      let existingMatch: Supplier | undefined;
+      if (normCode && existingCodeMap.has(normCode)) {
+        existingMatch = existingCodeMap.get(normCode);
+      } else if (existingNameMap.has(normName)) {
+        existingMatch = existingNameMap.get(normName);
+      }
+
+      if (existingMatch) {
+        const updates: UpdateSupplierInput = {
+          supplierName: rawName,
+          contactPerson: rawContact || existingMatch.contactPerson || '',
+          phone: rawPhone || existingMatch.phone || '',
+          email: rawEmail || existingMatch.email || '',
+          address: rawAddress || existingMatch.address || '',
+          notes: rawNotes || existingMatch.notes || '',
+          active: isActive,
+        };
+        if (normCode) updates.supplierCode = normCode;
+
+        updateItems.push({ id: existingMatch.id, updates });
+        rows.push({
+          rowNumber,
+          action: 'UPDATE',
+          code: normCode || existingMatch.supplierCode,
+          title: rawName,
+          subtitle: rawContact ? `${rawContact} (${rawPhone || '-'})` : rawPhone || rawEmail || '-',
+          tag: isActive ? 'ACTIVE' : 'INACTIVE',
+          reason: `Kemaskini maklumat pembekal sedia ada (${existingMatch.supplierCode})`,
+          existingId: existingMatch.id,
+          payload: updates,
+          rawRow: row,
+        });
+      } else {
+        // New Supplier
+        if (normCode && seenBatchCodes.has(normCode)) {
+          rows.push({
+            rowNumber,
+            action: 'INVALID',
+            code: normCode,
+            title: rawName,
+            reason: `Duplikasi kod pembekal "${normCode}" dalam fail CSV.`,
+            payload: null,
+            rawRow: row,
+          });
+          errors.push({
+            rowNumber,
+            reason: `Duplikasi kod pembekal "${normCode}" dalam fail CSV.`,
+            rawRow: row,
+          });
+          return;
+        }
+
+        if (normCode) seenBatchCodes.add(normCode);
+        seenBatchNames.add(normName);
+
+        const newItem: CreateSupplierInput = {
+          supplierCode: normCode || undefined,
+          supplierName: rawName,
+          contactPerson: rawContact || undefined,
+          phone: rawPhone || undefined,
+          email: rawEmail || undefined,
+          address: rawAddress || undefined,
+          notes: rawNotes || undefined,
+        };
+
+        newItems.push(newItem);
+        rows.push({
+          rowNumber,
+          action: 'NEW',
+          code: normCode || '(Autogenerate)',
+          title: rawName,
+          subtitle: rawContact ? `${rawContact} (${rawPhone || '-'})` : rawPhone || rawEmail || '-',
+          tag: isActive ? 'ACTIVE' : 'INACTIVE',
+          reason: 'Pendaftaran pembekal baru',
+          payload: newItem,
+          rawRow: row,
+        });
+      }
+    });
+
+    const newCount = rows.filter((r) => r.action === 'NEW').length;
+    const updateCount = rows.filter((r) => r.action === 'UPDATE').length;
+    const invalidCount = rows.filter((r) => r.action === 'INVALID').length;
+
+    return {
+      totalRows: csvRows.length,
+      newCount,
+      updateCount,
+      invalidCount,
+      rows,
+      newItems,
+      updateItems,
+      errors,
+      isValid: invalidCount === 0,
+    };
+  }
+
+  /**
+   * Validates customers from imported CSV with upsert support.
+   */
+  public static validateCustomersUpsert(
+    csvRows: Record<string, string>[],
+    existingCustomers: Customer[]
+  ): CsvEntityUpsertValidationResult<CreateCustomerInput, UpdateCustomerInput> {
+    const existingCodeMap = new Map<string, Customer>();
+    const existingPhoneMap = new Map<string, Customer>();
+
+    existingCustomers.forEach((c) => {
+      if (c.customerCode) existingCodeMap.set(SmartInputService.normalizeCode(c.customerCode), c);
+      if (c.phone) {
+        const cleanPhone = c.phone.replace(/\D/g, '');
+        if (cleanPhone) existingPhoneMap.set(cleanPhone, c);
+      }
+    });
+
+    const seenBatchCodes = new Set<string>();
+    const seenBatchPhones = new Set<string>();
+
+    const rows: CsvGenericEntityRow<any>[] = [];
+    const newItems: CreateCustomerInput[] = [];
+    const updateItems: { id: string; updates: UpdateCustomerInput }[] = [];
+    const errors: { rowNumber: number; reason: string; rawRow: Record<string, string> }[] = [];
+
+    csvRows.forEach((row, index) => {
+      const rowNumber = index + 2;
+
+      const findVal = (keyPattern: RegExp, excludePattern?: RegExp) => {
+        const matchingKey = Object.keys(row).find((k) => {
+          if (!keyPattern.test(k)) return false;
+          if (excludePattern && excludePattern.test(k)) return false;
+          return true;
+        });
+        return matchingKey ? row[matchingKey].trim() : '';
+      };
+
+      const rawCode = findVal(/customer.*code|code|kod/i);
+      const rawName = findVal(/customer.*name|name|nama|pelanggan/i);
+      const rawPhone = findVal(/phone|tel|telefon|hp|mobile/i);
+      const rawEmail = findVal(/email|emel/i);
+      const rawNotes = findVal(/note|nota|catatan/i);
+      const rawStatus = findVal(/status|active|aktif/i);
+
+      if (!rawName) {
+        rows.push({
+          rowNumber,
+          action: 'INVALID',
+          code: rawCode || '-',
+          title: 'Tidak Sah (Nama Tiada)',
+          subtitle: rawPhone || rawEmail || '-',
+          reason: 'Nama pelanggan wajib diisi.',
+          payload: null,
+          rawRow: row,
+        });
+        errors.push({ rowNumber, reason: 'Nama pelanggan wajib diisi.', rawRow: row });
+        return;
+      }
+
+      const normCode = rawCode ? SmartInputService.normalizeCode(rawCode) : '';
+      const cleanPhone = rawPhone.replace(/\D/g, '');
+      const isActive = !/inactive|tidak|palsu|false|0/i.test(rawStatus);
+
+      let existingMatch: Customer | undefined;
+      if (normCode && existingCodeMap.has(normCode)) {
+        existingMatch = existingCodeMap.get(normCode);
+      } else if (cleanPhone && existingPhoneMap.has(cleanPhone)) {
+        existingMatch = existingPhoneMap.get(cleanPhone);
+      }
+
+      if (existingMatch) {
+        const updates: UpdateCustomerInput = {
+          customerName: rawName,
+          phone: rawPhone || existingMatch.phone || '',
+          email: rawEmail || existingMatch.email || '',
+          notes: rawNotes || existingMatch.notes || '',
+          active: isActive,
+        };
+        if (normCode) updates.customerCode = normCode;
+
+        updateItems.push({ id: existingMatch.id, updates });
+        rows.push({
+          rowNumber,
+          action: 'UPDATE',
+          code: normCode || existingMatch.customerCode,
+          title: rawName,
+          subtitle: rawPhone ? `Tel: ${rawPhone}` : rawEmail || 'Tiada maklumat telefon',
+          tag: isActive ? 'ACTIVE' : 'INACTIVE',
+          reason: `Kemaskini maklumat pelanggan sedia ada (${existingMatch.customerCode})`,
+          existingId: existingMatch.id,
+          payload: updates,
+          rawRow: row,
+        });
+      } else {
+        if (normCode && seenBatchCodes.has(normCode)) {
+          rows.push({
+            rowNumber,
+            action: 'INVALID',
+            code: normCode,
+            title: rawName,
+            reason: `Duplikasi kod pelanggan "${normCode}" dalam fail CSV.`,
+            payload: null,
+            rawRow: row,
+          });
+          errors.push({
+            rowNumber,
+            reason: `Duplikasi kod pelanggan "${normCode}" dalam fail CSV.`,
+            rawRow: row,
+          });
+          return;
+        }
+        if (normCode) seenBatchCodes.add(normCode);
+        if (cleanPhone) seenBatchPhones.add(cleanPhone);
+
+        const newItem: CreateCustomerInput = {
+          customerCode: normCode || undefined,
+          customerName: rawName,
+          phone: rawPhone || undefined,
+          email: rawEmail || undefined,
+          notes: rawNotes || undefined,
+          active: isActive,
+        };
+
+        newItems.push(newItem);
+        rows.push({
+          rowNumber,
+          action: 'NEW',
+          code: normCode || '(Autogenerate)',
+          title: rawName,
+          subtitle: rawPhone ? `Tel: ${rawPhone}` : rawEmail || 'Pelanggan Baru',
+          tag: isActive ? 'ACTIVE' : 'INACTIVE',
+          reason: 'Pendaftaran pelanggan baru',
+          payload: newItem,
+          rawRow: row,
+        });
+      }
+    });
+
+    const newCount = rows.filter((r) => r.action === 'NEW').length;
+    const updateCount = rows.filter((r) => r.action === 'UPDATE').length;
+    const invalidCount = rows.filter((r) => r.action === 'INVALID').length;
+
+    return {
+      totalRows: csvRows.length,
+      newCount,
+      updateCount,
+      invalidCount,
+      rows,
+      newItems,
+      updateItems,
+      errors,
+      isValid: invalidCount === 0,
+    };
+  }
+
+  /**
+   * Validates staff users from imported CSV with upsert support.
+   */
+  public static validateStaffUpsert(
+    csvRows: Record<string, string>[],
+    existingStaff: StaffUser[]
+  ): CsvEntityUpsertValidationResult<CreateStaffInput, UpdateStaffInput> {
+    const existingCodeMap = new Map<string, StaffUser>();
+    const existingNameMap = new Map<string, StaffUser>();
+
+    existingStaff.forEach((s) => {
+      const code = s.staffCode || s.userCode;
+      if (code) existingCodeMap.set(SmartInputService.normalizeCode(code), s);
+      if (s.name) existingNameMap.set(s.name.trim().toLowerCase(), s);
+    });
+
+    const seenBatchCodes = new Set<string>();
+
+    const rows: CsvGenericEntityRow<any>[] = [];
+    const newItems: CreateStaffInput[] = [];
+    const updateItems: { id: string; updates: UpdateStaffInput }[] = [];
+    const errors: { rowNumber: number; reason: string; rawRow: Record<string, string> }[] = [];
+
+    csvRows.forEach((row, index) => {
+      const rowNumber = index + 2;
+
+      const findVal = (keyPattern: RegExp, excludePattern?: RegExp) => {
+        const matchingKey = Object.keys(row).find((k) => {
+          if (!keyPattern.test(k)) return false;
+          if (excludePattern && excludePattern.test(k)) return false;
+          return true;
+        });
+        return matchingKey ? row[matchingKey].trim() : '';
+      };
+
+      const rawCode = findVal(/staff.*code|user.*code|code|kod/i);
+      const rawName = findVal(/staff.*name|name|nama|pekerja|staf/i);
+      const rawRole = findVal(/role|peranan|jawatan/i);
+      const rawStatus = findVal(/status|active|aktif/i);
+
+      if (!rawName) {
+        rows.push({
+          rowNumber,
+          action: 'INVALID',
+          code: rawCode || '-',
+          title: 'Tidak Sah (Nama Tiada)',
+          subtitle: rawRole || '-',
+          reason: 'Nama pekerja/staf wajib diisi.',
+          payload: null,
+          rawRow: row,
+        });
+        errors.push({ rowNumber, reason: 'Nama pekerja/staf wajib diisi.', rawRow: row });
+        return;
+      }
+
+      // Parse role
+      let role: StaffRole = 'CASHIER';
+      const upperRole = rawRole.toUpperCase();
+      if (/MANAGER|PENGURUS/i.test(upperRole)) {
+        role = 'MANAGER';
+      } else if (/OWNER|PEMILIK/i.test(upperRole)) {
+        role = 'OWNER';
+      } else if (/INVENTORY|STOK/i.test(upperRole)) {
+        role = 'INVENTORY_STAFF';
+      } else {
+        role = 'CASHIER';
+      }
+
+      const normCode = rawCode ? SmartInputService.normalizeCode(rawCode) : '';
+      const normName = rawName.toLowerCase();
+      const isActive = !/inactive|tidak|palsu|false|0/i.test(rawStatus);
+
+      let existingMatch: StaffUser | undefined;
+      if (normCode && existingCodeMap.has(normCode)) {
+        existingMatch = existingCodeMap.get(normCode);
+      } else if (existingNameMap.has(normName)) {
+        existingMatch = existingNameMap.get(normName);
+      }
+
+      if (existingMatch) {
+        const updates: UpdateStaffInput = {
+          name: rawName,
+          role,
+          active: isActive,
+        };
+        if (normCode) {
+          updates.staffCode = normCode;
+          updates.userCode = normCode;
+        }
+
+        updateItems.push({ id: existingMatch.id, updates });
+        rows.push({
+          rowNumber,
+          action: 'UPDATE',
+          code: normCode || existingMatch.staffCode || existingMatch.userCode,
+          title: rawName,
+          subtitle: `Peranan: ${role}`,
+          tag: isActive ? 'ACTIVE' : 'INACTIVE',
+          reason: `Kemaskini maklumat staf sedia ada (${existingMatch.staffCode || existingMatch.userCode})`,
+          existingId: existingMatch.id,
+          payload: updates,
+          rawRow: row,
+        });
+      } else {
+        if (normCode && seenBatchCodes.has(normCode)) {
+          rows.push({
+            rowNumber,
+            action: 'INVALID',
+            code: normCode,
+            title: rawName,
+            reason: `Duplikasi kod staf "${normCode}" dalam fail CSV.`,
+            payload: null,
+            rawRow: row,
+          });
+          errors.push({
+            rowNumber,
+            reason: `Duplikasi kod staf "${normCode}" dalam fail CSV.`,
+            rawRow: row,
+          });
+          return;
+        }
+        if (normCode) seenBatchCodes.add(normCode);
+
+        const newItem: CreateStaffInput = {
+          staffCode: normCode || undefined,
+          userCode: normCode || undefined,
+          name: rawName,
+          role,
+          active: isActive,
+        };
+
+        newItems.push(newItem);
+        rows.push({
+          rowNumber,
+          action: 'NEW',
+          code: normCode || '(Autogenerate)',
+          title: rawName,
+          subtitle: `Peranan: ${role}`,
+          tag: isActive ? 'ACTIVE' : 'INACTIVE',
+          reason: 'Pendaftaran staf/pekerja baru',
+          payload: newItem,
+          rawRow: row,
+        });
+      }
+    });
+
+    const newCount = rows.filter((r) => r.action === 'NEW').length;
+    const updateCount = rows.filter((r) => r.action === 'UPDATE').length;
+    const invalidCount = rows.filter((r) => r.action === 'INVALID').length;
+
+    return {
+      totalRows: csvRows.length,
+      newCount,
+      updateCount,
+      invalidCount,
+      rows,
+      newItems,
+      updateItems,
       errors,
       isValid: invalidCount === 0,
     };

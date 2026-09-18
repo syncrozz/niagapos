@@ -112,57 +112,80 @@ export const AppShell: React.FC<AppShellProps> = ({
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
 
-              <div
-                id="header-branding-home-trigger"
-                role="button"
-                tabIndex={0}
-                aria-label="Kembali ke Dashboard NiagaPOS"
-                className="flex items-center gap-2 cursor-pointer hover:opacity-95 transition select-none group"
-                onClick={() => {
-                  onNavigate('dashboard');
-                  setMobileMenuOpen(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    onNavigate('dashboard');
-                    setMobileMenuOpen(false);
-                  }
-                }}
-              >
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-white border border-stone-200/90 shadow-2xs group-hover:scale-105 transition-transform flex items-center justify-center p-0.5 shrink-0">
-                  <img
-                    src={NIAGAPOS_ASSETS.logoSvg}
-                    alt="NiagaPOS Logo"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
+              {(() => {
+                const isClientSlugView = Boolean(currentWorkspace);
+                return (
+                  <div
+                    id="header-branding-home-trigger"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={
+                      isClientSlugView
+                        ? `Kembali ke Dashboard ${currentWorkspace?.workspaceName || 'Platform Klien'}`
+                        : 'Kembali ke Dashboard NiagaPOS'
+                    }
+                    title={
+                      isClientSlugView
+                        ? `Platform Klien: ${currentWorkspace?.workspaceName} (/${currentWorkspace?.workspaceSlug})`
+                        : 'NiagaPOS — Sistem Pengurusan Runcit & POS'
+                    }
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-95 transition select-none group"
+                    onClick={() => {
+                      onNavigate('dashboard');
+                      setMobileMenuOpen(false);
                     }}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-stone-900 tracking-tight text-sm sm:text-base leading-tight">
-                      {store.name.includes('POS') ? (
-                        <>
-                          {store.name.split('POS').map((part, index, array) => (
-                            <React.Fragment key={index}>
-                              {part}
-                              {index < array.length - 1 && <span className="text-red-600">POS</span>}
-                            </React.Fragment>
-                          ))}
-                        </>
-                      ) : (
-                        store.name
-                      )}
-                    </span>
-                    {currentWorkspace && (
-                      <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 border border-stone-200">
-                        /{currentWorkspace.workspaceSlug}
-                      </span>
-                    )}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        onNavigate('dashboard');
+                        setMobileMenuOpen(false);
+                      }
+                    }}
+                  >
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-white border border-stone-200/90 shadow-2xs group-hover:scale-105 transition-transform flex items-center justify-center p-0.5 shrink-0">
+                      <img
+                        src={NIAGAPOS_ASSETS.logoSvg}
+                        alt="NiagaPOS Logo"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = NIAGAPOS_ASSETS.local.logoSvg;
+                        }}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-stone-900 tracking-tight text-sm sm:text-base leading-tight select-none flex items-center">
+                          {!isClientSlugView ? (
+                            <>
+                              Niaga<span className="text-red-600 font-extrabold">POS</span>
+                            </>
+                          ) : currentWorkspace?.workspaceName?.includes('POS') ? (
+                            <>
+                              {currentWorkspace.workspaceName.split('POS').map((part, index, array) => (
+                                <React.Fragment key={index}>
+                                  {part}
+                                  {index < array.length - 1 && <span className="text-red-600">POS</span>}
+                                </React.Fragment>
+                              ))}
+                            </>
+                          ) : (
+                            currentWorkspace?.workspaceName || store.name
+                          )}
+                        </span>
+                        {isClientSlugView && currentWorkspace && (
+                          <>
+                            <span className="inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200 shadow-2xs">
+                              /{currentWorkspace.workspaceSlug}
+                            </span>
+                            <span className="hidden sm:inline-flex text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Platform Klien
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             {/* Desktop Navigation Links */}

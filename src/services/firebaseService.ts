@@ -583,11 +583,16 @@ export class FirebaseService {
       for (const colName of collectionNames) {
         const snap = await getDocs(collection(db, colName));
         if (!snap.empty) {
-          const batch = writeBatch(db);
-          snap.docs.forEach((docSnap) => {
-            batch.delete(docSnap.ref);
-          });
-          await batch.commit();
+          const docs = snap.docs;
+          const chunkSize = 400;
+          for (let i = 0; i < docs.length; i += chunkSize) {
+            const batch = writeBatch(db);
+            const chunk = docs.slice(i, i + chunkSize);
+            chunk.forEach((docSnap) => {
+              batch.delete(docSnap.ref);
+            });
+            await batch.commit();
+          }
         }
       }
       this.updateStatus('CONNECTED');

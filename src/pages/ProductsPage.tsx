@@ -24,6 +24,13 @@ import {
   UploadCloud,
   FileSpreadsheet,
   SearchCheck,
+  Building2,
+  Users,
+  UserCheck,
+  CheckSquare,
+  Square,
+  Layers,
+  RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Product, StockStatus, CommitUpsertPayload, UpsertImportCommitResult } from '../types';
@@ -56,6 +63,14 @@ export const ProductsPage: React.FC = () => {
     isSkuAvailable,
     isAdminMode,
     requireAdmin,
+    clearAllStoreData,
+    clearStoreCategories,
+    suppliers,
+    customers,
+    staffUsers,
+    loyaltyLedger,
+    sales,
+    movements,
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +86,20 @@ export const ProductsPage: React.FC = () => {
   const [selectedProductForHistory, setSelectedProductForHistory] = useState<Product | null>(null);
   const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [isDuplicateAuditOpen, setIsDuplicateAuditOpen] = useState(false);
+  const [isClearCatalogModalOpen, setIsClearCatalogModalOpen] = useState(false);
+  const [isClearingCatalog, setIsClearingCatalog] = useState(false);
+  const [clearMode, setClearMode] = useState<'ALL' | 'CUSTOM'>('ALL');
+  const [selectedClearCategories, setSelectedClearCategories] = useState<{
+    products: boolean;
+    suppliers: boolean;
+    customers: boolean;
+    staff: boolean;
+  }>({
+    products: true,
+    suppliers: true,
+    customers: true,
+    staff: true,
+  });
 
   // Duplicate audit groups (SES 4.4 Locked Part E)
   const duplicateAuditGroups = useMemo(
@@ -135,7 +164,7 @@ export const ProductsPage: React.FC = () => {
   const openAddModal = () => {
     setFormError(null);
     setFormData({
-      sku: `KP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      sku: `NP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
       name: '',
       category: 'Snacks & Biscuits',
       costPrice: 1.5,
@@ -221,6 +250,54 @@ export const ProductsPage: React.FC = () => {
     });
     setTimeout(() => setNotification(null), 5000);
     return result;
+  };
+
+  const handleClearCatalogClick = () => {
+    requireAdmin(() => {
+      setClearMode('ALL');
+      setSelectedClearCategories({
+        products: true,
+        suppliers: true,
+        customers: true,
+        staff: true,
+      });
+      setIsClearCatalogModalOpen(true);
+    }, 'Mula Dari Kosong (Pilihan Kategori)');
+  };
+
+  const handleConfirmClearCatalog = async () => {
+    const targets =
+      clearMode === 'ALL'
+        ? { products: true, suppliers: true, customers: true, staff: true }
+        : selectedClearCategories;
+
+    const anySelected = targets.products || targets.suppliers || targets.customers || targets.staff;
+    if (!anySelected) {
+      setNotification({
+        type: 'warning',
+        message: 'Sila pilih sekurang-kurangnya 1 kategori untuk dikosongkan.',
+      });
+      setTimeout(() => setNotification(null), 4000);
+      return;
+    }
+
+    setIsClearingCatalog(true);
+    try {
+      const result = await clearStoreCategories(targets);
+      setIsClearCatalogModalOpen(false);
+      setNotification({
+        type: 'success',
+        message: result.message,
+      });
+      setTimeout(() => setNotification(null), 6000);
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        message: 'Gagal mengosongkan data: ' + (err?.message || 'Ralat tidak diketahui'),
+      });
+    } finally {
+      setIsClearingCatalog(false);
+    }
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -420,6 +497,20 @@ export const ProductsPage: React.FC = () => {
             <span>Import CSV</span>
           </button>
 
+          {/* Purge Demo & Start Fresh Button */}
+          {(products.length > 0 || (suppliers && suppliers.length > 0) || (customers && customers.length > 0) || (staffUsers && staffUsers.length > 0)) && (
+            <button
+              type="button"
+              id="clear-catalog-zero-btn"
+              onClick={handleClearCatalogClick}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-300 bg-rose-50/90 text-rose-700 text-xs sm:text-sm font-semibold hover:bg-rose-100 hover:border-rose-400 hover:text-rose-800 active:scale-95 transition-all shadow-2xs cursor-pointer"
+              title="Mula dari kosong bagi semua kategori atau pilihan kategori: Product, Supplier, Customer, Staff"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Mula Dari Kosong</span>
+            </button>
+          )}
+
           {/* New Product Button (SES 4.4 Locked Part A: Admin Gated) */}
           <button
             type="button"
@@ -572,7 +663,39 @@ export const ProductsPage: React.FC = () => {
 
       {/* Products Table */}
       <div className="bg-white rounded-xl border border-stone-200 shadow-xs overflow-hidden">
-        {filteredProducts.length === 0 ? (
+        {products.length === 0 ? (
+          <div className="py-16 px-6 text-center max-w-md mx-auto">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100 shadow-2xs">
+              <Package className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-bold text-stone-900 mb-1">
+              Katalog Anda Masih Kosong
+            </h3>
+            <p className="text-xs text-stone-500 mb-6 leading-relaxed">
+              Semua item demo telah dibersihkan sepenuhnya. Anda kini sedia untuk mendaftarkan inventori dan produk sebenar kedai anda dari awal (zero baseline).
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                id="empty-state-add-first-product-btn"
+                onClick={openAddModal}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition shadow-2xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tambah Produk Pertama</span>
+              </button>
+              <button
+                type="button"
+                id="empty-state-import-csv-btn"
+                onClick={handleImportCsvClick}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-stone-200 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 transition shadow-2xs cursor-pointer"
+              >
+                <UploadCloud className="w-4 h-4 text-emerald-600" />
+                <span>Import CSV Produk</span>
+              </button>
+            </div>
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="py-12">
             <EmptyState
               icon={Package}
@@ -839,7 +962,7 @@ export const ProductsPage: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="e.g. KP-BISKUT-01"
+                placeholder="e.g. NP-BISKUT-01"
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
@@ -1425,6 +1548,330 @@ export const ProductsPage: React.FC = () => {
         auditGroups={duplicateAuditGroups}
         entityType="Produk"
       />
+
+      {/* Modal Sahkan Kosongkan Katalog (Mula Dari Kosong - Semua atau Kategori Pilihan) */}
+      <Modal
+        isOpen={isClearCatalogModalOpen}
+        onClose={() => !isClearingCatalog && setIsClearCatalogModalOpen(false)}
+        title="Pilihan Mula Dari Kosong (Reset Data)"
+        subtitle="Pilih sama ada ingin mengosongkan semua kategori serentak atau hanya kategori tertentu (Product, Supplier, Customer, Staff)"
+        maxWidth="2xl"
+      >
+        <div className="space-y-4">
+          {/* Pilihan Mod: Semua Kategori atau Kategori Pilihan */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-stone-100 rounded-xl border border-stone-200">
+            <button
+              type="button"
+              id="clear-mode-all-tab"
+              onClick={() => {
+                setClearMode('ALL');
+                setSelectedClearCategories({
+                  products: true,
+                  suppliers: true,
+                  customers: true,
+                  staff: true,
+                });
+              }}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                clearMode === 'ALL'
+                  ? 'bg-white text-rose-700 shadow-2xs border border-stone-200/80'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Semua Kategori (Penuh)</span>
+            </button>
+
+            <button
+              type="button"
+              id="clear-mode-custom-tab"
+              onClick={() => setClearMode('CUSTOM')}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                clearMode === 'CUSTOM'
+                  ? 'bg-white text-rose-700 shadow-2xs border border-stone-200/80'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>Kategori Pilihan (Kustom)</span>
+            </button>
+          </div>
+
+          {/* Penerangan Mod */}
+          {clearMode === 'ALL' ? (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-xs text-rose-900">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold mb-0.5">Mod Penuh: Pembersihan Menyeluruh Semua Kategori</p>
+                <p className="text-rose-800 leading-relaxed">
+                  Semua rekod Product, Supplier, Customer, dan Staff beserta pergerakan stok, transaksi jualan, pesanan belian, dan lejar mata ganjaran akan dipadamkan serentak untuk membolehkan kedai bermula dari sifar (0).
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
+              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">Tandakan kategori yang ingin dimulakan dari kosong:</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedClearCategories({
+                          products: true,
+                          suppliers: true,
+                          customers: true,
+                          staff: true,
+                        })
+                      }
+                      className="text-2xs font-bold text-amber-800 hover:underline cursor-pointer"
+                    >
+                      Pilih Semua
+                    </button>
+                    <span className="text-stone-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedClearCategories({
+                          products: false,
+                          suppliers: false,
+                          customers: false,
+                          staff: false,
+                        })
+                      }
+                      className="text-2xs font-bold text-amber-800 hover:underline cursor-pointer"
+                    >
+                      Nyahpilih
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Senarai Kad Kategori */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* 1. Product */}
+            <div
+              id="clear-cat-product-card"
+              onClick={() => {
+                if (clearMode === 'CUSTOM') {
+                  setSelectedClearCategories((prev) => ({ ...prev, products: !prev.products }));
+                }
+              }}
+              className={`p-3 rounded-xl border transition-all ${
+                clearMode === 'ALL' || selectedClearCategories.products
+                  ? 'border-rose-300 bg-rose-50/50 text-stone-900'
+                  : 'border-stone-200 bg-stone-50/60 text-stone-500 opacity-60'
+              } ${clearMode === 'CUSTOM' ? 'cursor-pointer hover:border-rose-400' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${clearMode === 'ALL' || selectedClearCategories.products ? 'bg-rose-100 text-rose-700' : 'bg-stone-200 text-stone-500'}`}>
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-900">Product (Produk)</h4>
+                    <span className="text-2xs text-stone-500">Katalog &amp; Inventori</span>
+                  </div>
+                </div>
+                {clearMode === 'CUSTOM' ? (
+                  selectedClearCategories.products ? (
+                    <CheckSquare className="w-4 h-4 text-rose-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-stone-400" />
+                  )
+                ) : (
+                  <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-rose-200/80 text-rose-800">Semua</span>
+                )}
+              </div>
+              <div className="mt-2 pt-2 border-t border-stone-200/60 flex items-center justify-between text-2xs text-stone-600">
+                <span>{products.length} produk &bull; {movements.length} log stok</span>
+                <span className="font-mono font-semibold text-rose-700">{products.length} item</span>
+              </div>
+            </div>
+
+            {/* 2. Supplier */}
+            <div
+              id="clear-cat-supplier-card"
+              onClick={() => {
+                if (clearMode === 'CUSTOM') {
+                  setSelectedClearCategories((prev) => ({ ...prev, suppliers: !prev.suppliers }));
+                }
+              }}
+              className={`p-3 rounded-xl border transition-all ${
+                clearMode === 'ALL' || selectedClearCategories.suppliers
+                  ? 'border-rose-300 bg-rose-50/50 text-stone-900'
+                  : 'border-stone-200 bg-stone-50/60 text-stone-500 opacity-60'
+              } ${clearMode === 'CUSTOM' ? 'cursor-pointer hover:border-rose-400' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${clearMode === 'ALL' || selectedClearCategories.suppliers ? 'bg-rose-100 text-rose-700' : 'bg-stone-200 text-stone-500'}`}>
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-900">Supplier (Pembekal)</h4>
+                    <span className="text-2xs text-stone-500">Profil &amp; Belian Stok</span>
+                  </div>
+                </div>
+                {clearMode === 'CUSTOM' ? (
+                  selectedClearCategories.suppliers ? (
+                    <CheckSquare className="w-4 h-4 text-rose-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-stone-400" />
+                  )
+                ) : (
+                  <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-rose-200/80 text-rose-800">Semua</span>
+                )}
+              </div>
+              <div className="mt-2 pt-2 border-t border-stone-200/60 flex items-center justify-between text-2xs text-stone-600">
+                <span>{suppliers.length} pembekal &bull; {purchases.length} pesanan belian</span>
+                <span className="font-mono font-semibold text-rose-700">{suppliers.length} pembekal</span>
+              </div>
+            </div>
+
+            {/* 3. Customer */}
+            <div
+              id="clear-cat-customer-card"
+              onClick={() => {
+                if (clearMode === 'CUSTOM') {
+                  setSelectedClearCategories((prev) => ({ ...prev, customers: !prev.customers }));
+                }
+              }}
+              className={`p-3 rounded-xl border transition-all ${
+                clearMode === 'ALL' || selectedClearCategories.customers
+                  ? 'border-rose-300 bg-rose-50/50 text-stone-900'
+                  : 'border-stone-200 bg-stone-50/60 text-stone-500 opacity-60'
+              } ${clearMode === 'CUSTOM' ? 'cursor-pointer hover:border-rose-400' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${clearMode === 'ALL' || selectedClearCategories.customers ? 'bg-rose-100 text-rose-700' : 'bg-stone-200 text-stone-500'}`}>
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-900">Customer (Pelanggan)</h4>
+                    <span className="text-2xs text-stone-500">Ahli &amp; Mata Ganjaran</span>
+                  </div>
+                </div>
+                {clearMode === 'CUSTOM' ? (
+                  selectedClearCategories.customers ? (
+                    <CheckSquare className="w-4 h-4 text-rose-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-stone-400" />
+                  )
+                ) : (
+                  <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-rose-200/80 text-rose-800">Semua</span>
+                )}
+              </div>
+              <div className="mt-2 pt-2 border-t border-stone-200/60 flex items-center justify-between text-2xs text-stone-600">
+                <span>{customers.length} pelanggan &bull; {loyaltyLedger.length} log mata</span>
+                <span className="font-mono font-semibold text-rose-700">{customers.length} pelanggan</span>
+              </div>
+            </div>
+
+            {/* 4. Staff */}
+            <div
+              id="clear-cat-staff-card"
+              onClick={() => {
+                if (clearMode === 'CUSTOM') {
+                  setSelectedClearCategories((prev) => ({ ...prev, staff: !prev.staff }));
+                }
+              }}
+              className={`p-3 rounded-xl border transition-all ${
+                clearMode === 'ALL' || selectedClearCategories.staff
+                  ? 'border-rose-300 bg-rose-50/50 text-stone-900'
+                  : 'border-stone-200 bg-stone-50/60 text-stone-500 opacity-60'
+              } ${clearMode === 'CUSTOM' ? 'cursor-pointer hover:border-rose-400' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${clearMode === 'ALL' || selectedClearCategories.staff ? 'bg-rose-100 text-rose-700' : 'bg-stone-200 text-stone-500'}`}>
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-900">Staff (Pekerja)</h4>
+                    <span className="text-2xs text-stone-500">Direktori &amp; Akaun Staf</span>
+                  </div>
+                </div>
+                {clearMode === 'CUSTOM' ? (
+                  selectedClearCategories.staff ? (
+                    <CheckSquare className="w-4 h-4 text-rose-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-stone-400" />
+                  )
+                ) : (
+                  <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-rose-200/80 text-rose-800">Semua</span>
+                )}
+              </div>
+              <div className="mt-2 pt-2 border-t border-stone-200/60 flex items-center justify-between text-2xs text-stone-600">
+                <span>{staffUsers.length} akaun staf (direset ke Pemilik)</span>
+                <span className="font-mono font-semibold text-rose-700">{staffUsers.length} staf</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Ringkasan Kesan Pembersihan */}
+          <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-stone-700">Status Tindakan:</span>
+              <span className="font-bold text-rose-700 font-mono">
+                {clearMode === 'ALL'
+                  ? '4 Kategori Dipilih (Pembersihan Menyeluruh)'
+                  : `${
+                      (selectedClearCategories.products ? 1 : 0) +
+                      (selectedClearCategories.suppliers ? 1 : 0) +
+                      (selectedClearCategories.customers ? 1 : 0) +
+                      (selectedClearCategories.staff ? 1 : 0)
+                    } Kategori Dipilih`}
+              </span>
+            </div>
+            <p className="text-2xs text-stone-500 leading-relaxed">
+              Data yang dikosongkan akan dipadamkan daripada storan setempat dan diselaraskan secara langsung di pangkalan data awan Firebase Firestore.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+            <button
+              type="button"
+              disabled={isClearingCatalog}
+              onClick={() => setIsClearCatalogModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 cursor-pointer disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              id="confirm-purge-catalog-btn"
+              disabled={
+                isClearingCatalog ||
+                (clearMode === 'CUSTOM' &&
+                  !selectedClearCategories.products &&
+                  !selectedClearCategories.suppliers &&
+                  !selectedClearCategories.customers &&
+                  !selectedClearCategories.staff)
+              }
+              onClick={handleConfirmClearCatalog}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isClearingCatalog ? (
+                <span>Sedang Memadamkan Dari Awan...</span>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>
+                    {clearMode === 'ALL'
+                      ? 'Sahkan & Padam Semua (Bermula Kosong)'
+                      : 'Sahkan & Padam Kategori Terpilih'}
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

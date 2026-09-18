@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Download,
   Upload,
+  UploadCloud,
   Database,
   HardDrive,
   FileCheck,
@@ -39,6 +40,8 @@ import { StorageService, StoreBackupPayload } from '../services/storageService';
 import { pushRoute, parseRoute } from '../services/urlRouter';
 import { ClientAuthService } from '../services/clientAuthService';
 import { ChangePinModal } from '../components/auth/ChangePinModal';
+import { CsvService } from '../services/csvService';
+import { EntityCsvImportModal } from '../components/common/EntityCsvImportModal';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -50,6 +53,7 @@ export const SettingsPage: React.FC = () => {
     addStaff,
     updateStaff,
     toggleStaffActive,
+    commitStaffUpsertImport,
     products,
     movements,
     sales,
@@ -59,6 +63,7 @@ export const SettingsPage: React.FC = () => {
     loyaltyLedger,
     downloadBackup,
     restoreStoreData,
+    clearAllStoreData,
     cloudSyncStatus,
     lastCloudSync,
     syncAllToCloud,
@@ -66,6 +71,8 @@ export const SettingsPage: React.FC = () => {
     isAdminMode,
     requireAdmin,
   } = useStore();
+
+  const [isResetting, setIsResetting] = useState(false);
 
   // Cloud Sync Feedback
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
@@ -130,6 +137,7 @@ export const SettingsPage: React.FC = () => {
 
   // Staff Modal State
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [isStaffImportModalOpen, setIsStaffImportModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffUser | null>(null);
   const [staffFormCode, setStaffFormCode] = useState('');
   const [staffFormName, setStaffFormName] = useState('');
@@ -277,14 +285,24 @@ export const SettingsPage: React.FC = () => {
     }, 'Pulihkan Data Kedai');
   };
 
-  const handleConfirmReset = () => {
-    resetToDemo();
-    setIsResetModalOpen(false);
-    setBackupMessage({
-      type: 'success',
-      text: 'Store data reset to official NiagaPOS pilot seed records.',
-    });
-    setTimeout(() => setBackupMessage(null), 4000);
+  const handleConfirmReset = async () => {
+    setIsResetting(true);
+    try {
+      const result = await clearAllStoreData();
+      setIsResetModalOpen(false);
+      setBackupMessage({
+        type: 'success',
+        text: result.message,
+      });
+      setTimeout(() => setBackupMessage(null), 6000);
+    } catch (err: any) {
+      setBackupMessage({
+        type: 'error',
+        text: `Gagal memadamkan data: ${err?.message || 'Ralat tidak diketahui'}`,
+      });
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const handleOpenAddStaff = () => {
@@ -634,21 +652,43 @@ export const SettingsPage: React.FC = () => {
 
       {/* Staff Directory & Management Card (Part 07) */}
       <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-xs">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-emerald-700" />
             <h2 className="text-base font-bold text-stone-900">
               Staff Directory ({staffUsers.length})
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenAddStaff}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-800 text-white hover:bg-emerald-900 transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Staff User</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              id="export-staff-csv-btn"
+              onClick={() => CsvService.exportStaff(staffUsers)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 transition shadow-2xs cursor-pointer"
+              title="Eksport senarai pekerja ke fail CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-stone-600" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
+              id="import-staff-csv-btn"
+              onClick={() => setIsStaffImportModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 transition shadow-2xs cursor-pointer"
+              title="Import senarai pekerja dari fail CSV"
+            >
+              <UploadCloud className="w-3.5 h-3.5 text-stone-600" />
+              <span>Import CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenAddStaff}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-800 text-white hover:bg-emerald-900 transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Staff User</span>
+            </button>
+          </div>
         </div>
         <p className="text-xs text-stone-500 mb-4">
           Manage cashier and staff credentials for register attribution and inventory movements.
@@ -1116,24 +1156,30 @@ export const SettingsPage: React.FC = () => {
       {/* Regression & Verification Testing Suite */}
       <VerificationAuditSuite />
 
-      {/* Data Integrity & Demo Reset Box */}
+      {/* Data Integrity & Zero Reset Box */}
       <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-sm text-stone-900">
-            Demo Data &amp; State Reset
-          </h3>
-          <p className="text-xs text-stone-500 max-w-md mt-0.5">
-            Reset all product records, inventory movements, sales, customers, and loyalty back to the initial NiagaPOS pilot baseline.
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-sm text-stone-900">
+              Pembersihan Data &amp; Mula Dari Kosong (Fresh Store Reset)
+            </h3>
+            <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+              Bermula Dari Sifar
+            </span>
+          </div>
+          <p className="text-xs text-stone-500 max-w-md mt-1 leading-relaxed">
+            Padamkan semua item katalog demo lama (seperti Beras Wangi Cap Rambutan dll), rekod pembekal, pelanggan, dan transaksi untuk membolehkan Klien / Pengguna bermula dari kosong sepenuhnya.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => requireAdmin(() => setIsResetModalOpen(true), 'Reset Data Kedai') }
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-stone-100 text-stone-800 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 border border-stone-200 transition cursor-pointer"
+          id="btn-purge-all-zero"
+          onClick={() => requireAdmin(() => setIsResetModalOpen(true), 'Kosongkan Semua Data Kedai') }
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 border border-rose-200 transition cursor-pointer shadow-2xs"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset to Pilot Seed Data</span>
+          <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+          <span>Kosongkan Semua &amp; Mula Dari Kosong</span>
         </button>
       </div>
 
@@ -1188,25 +1234,57 @@ export const SettingsPage: React.FC = () => {
           <div className="bg-white rounded-xl border border-stone-200 p-6 max-w-md w-full shadow-lg">
             <div className="flex items-center gap-2 mb-3 text-rose-600">
               <AlertTriangle className="w-5 h-5" />
-              <h3 className="font-bold text-base text-stone-900">Reset to Pilot Seed Data?</h3>
+              <h3 className="font-bold text-base text-stone-900">Kosongkan Semua Data Kedai?</h3>
             </div>
-            <p className="text-xs text-stone-600 mb-4">
-              This action will purge current operational records and reload the baseline sample inventory, pilot sales, and supplier seed records.
+            <p className="text-xs text-stone-600 mb-4 leading-relaxed">
+              Tindakan ini akan memadamkan secara kekal semua item katalog, pembekal, pelanggan, dan transaksi daripada storan tempatan serta Cloud Firestore supaya anda boleh bermula dengan kedai yang bersih (0 rekod).
             </p>
+
+            <div className="bg-stone-50 p-3.5 rounded-lg border border-stone-200 text-xs mb-4 space-y-1.5">
+              <div className="font-semibold text-stone-700 mb-1">Data yang akan dibersihkan:</div>
+              <div className="flex justify-between text-stone-600">
+                <span>Produk:</span>
+                <span className="font-mono font-bold text-stone-900">{products.length} rekod</span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Pembekal:</span>
+                <span className="font-mono font-bold text-stone-900">{suppliers.length} rekod</span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Pelanggan:</span>
+                <span className="font-mono font-bold text-stone-900">{customers.length} rekod</span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Transaksi Jualan:</span>
+                <span className="font-mono font-bold text-stone-900">{sales.length} rekod</span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Pergerakan Stok:</span>
+                <span className="font-mono font-bold text-stone-900">{movements.length} rekod</span>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2">
               <button
                 type="button"
+                disabled={isResetting}
                 onClick={() => setIsResetModalOpen(false)}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 cursor-pointer"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 cursor-pointer disabled:opacity-50"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="button"
+                id="btn-confirm-purge-zero"
+                disabled={isResetting}
                 onClick={handleConfirmReset}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-rose-700 text-white hover:bg-rose-800 shadow-xs cursor-pointer"
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-rose-700 text-white hover:bg-rose-800 shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
               >
-                Confirm Reset
+                {isResetting ? (
+                  <span>Sedang Memadamkan...</span>
+                ) : (
+                  <span>Sahkan &amp; Padam Semua</span>
+                )}
               </button>
             </div>
           </div>
@@ -1222,6 +1300,18 @@ export const SettingsPage: React.FC = () => {
           setPinSuccessMsg(msg);
           setTimeout(() => setPinSuccessMsg(null), 6000);
         }}
+      />
+
+      {/* Staff CSV Import Modal */}
+      <EntityCsvImportModal
+        id="staff-csv-import-modal"
+        isOpen={isStaffImportModalOpen}
+        onClose={() => setIsStaffImportModalOpen(false)}
+        entityName="Pekerja"
+        entityType="STAFF"
+        onDownloadTemplate={() => CsvService.downloadStaffCsvTemplate()}
+        onValidate={(rows) => CsvService.validateStaffUpsert(rows, staffUsers)}
+        onCommit={(res) => commitStaffUpsertImport(res)}
       />
     </div>
   );

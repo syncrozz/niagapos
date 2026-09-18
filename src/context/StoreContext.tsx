@@ -51,6 +51,14 @@ import {
 import { AdminAuthService } from '../services/adminAuthService';
 import { AdminPinModal } from '../components/common/AdminPinModal';
 import { FirebaseService, CloudSyncStatus } from '../services/firebaseService';
+import { parseRoute } from '../services/urlRouter';
+
+export interface ClearCategoriesOptions {
+  products?: boolean;
+  suppliers?: boolean;
+  customers?: boolean;
+  staff?: boolean;
+}
 
 interface StoreContextType {
   store: Store;
@@ -107,6 +115,10 @@ interface StoreContextType {
   toggleSupplierActive: (id: string) => void;
   deleteSupplier: (id: string) => { success: boolean; message: string };
   isSupplierCodeAvailable: (code: string, excludeId?: string) => boolean;
+  commitSuppliersUpsertImport: (payload: {
+    newItems: CreateSupplierInput[];
+    updateItems: { id: string; updates: UpdateSupplierInput }[];
+  }) => { added: number; updated: number };
   createPurchase: (input: CreatePurchaseInput) => Purchase;
   completePurchase: (purchaseId: string, preloadedPurchase?: Purchase) => CompletePurchaseResult;
   createAndCompletePurchase: (input: CreatePurchaseInput) => CompletePurchaseResult;
@@ -117,6 +129,10 @@ interface StoreContextType {
   toggleCustomerActive: (id: string) => void;
   deleteCustomer: (id: string) => { success: boolean; message: string };
   isCustomerCodeAvailable: (code: string, excludeId?: string) => boolean;
+  commitCustomersUpsertImport: (payload: {
+    newItems: CreateCustomerInput[];
+    updateItems: { id: string; updates: UpdateCustomerInput }[];
+  }) => { added: number; updated: number };
   awardLoyaltyPoints: (sale: Sale, customerId: string) => LoyaltyLedgerEntry | null;
   redeemLoyaltyPoints: (customerId: string, points: number, referenceId: string, description?: string) => LoyaltyLedgerEntry;
   // Staff Operations (Part 07)
@@ -124,7 +140,13 @@ interface StoreContextType {
   updateStaff: (id: string, updates: UpdateStaffInput) => StaffUser;
   toggleStaffActive: (id: string) => void;
   setActiveStaff: (staff: StaffUser | null) => void;
+  commitStaffUpsertImport: (payload: {
+    newItems: CreateStaffInput[];
+    updateItems: { id: string; updates: UpdateStaffInput }[];
+  }) => { added: number; updated: number };
   resetToDemo: () => void;
+  clearAllStoreData: () => Promise<{ success: boolean; message: string }>;
+  clearStoreCategories: (options: ClearCategoriesOptions) => Promise<{ success: boolean; message: string }>;
   updateStoreDetails: (details: Partial<Store>) => void;
   updateStore: (details: Partial<Store>) => void;
   // Backup & Recovery Operations (Part 08)
@@ -151,8 +173,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       INITIAL_STORE,
       (val) => !!val && typeof val === 'object' && !Array.isArray(val) && !!(val as any).id
     );
-    if (loaded.name === 'NiagaPOS V2' || loaded.name === 'Kedai PAPA') {
-      const updated = { ...loaded, name: 'NiagaPOS' };
+    const currentRoute = typeof window !== 'undefined' ? parseRoute(window.location.pathname) : { workspaceSlug: null };
+    if (!currentRoute.workspaceSlug && loaded.name !== 'NiagaPOS') {
+      const updated = { ...loaded, name: 'NiagaPOS', code: 'NP-01' };
       try {
         localStorage.setItem(STORAGE_KEYS.STORE, JSON.stringify(updated));
       } catch {
@@ -1499,6 +1522,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   };
 
+  const commitCustomersUpsertImport = (payload: {
+    newItems: CreateCustomerInput[];
+    updateItems: { id: string; updates: UpdateCustomerInput }[];
+  }): { added: number; updated: number } => {
+    let currentCustomers = [...customers];
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    for (const item of payload.updateItems) {
+      const existing = currentCustomers.find((c) => c.id === item.id);
+      if (existing) {
+        const updated = CustomerService.updateCustomer(item.id, item.updates, currentCustomers);
+        currentCustomers = currentCustomers.map((c) => (c.id === item.id ? updated : c));
+        FirebaseService.syncCustomer(updated);
+        updatedCount++;
+      }
+    }
+
+    for (const item of payload.newItems) {
+      const created = CustomerService.createCustomer(item, currentCustomers);
+      currentCustomers = [created, ...currentCustomers];
+      FirebaseService.syncCustomer(created);
+      addedCount++;
+    }
+
+    setCustomers(currentCustomers);
+    StorageService.safeSet(STORAGE_KEYS.CUSTOMERS, currentCustomers);
+    return { added: addedCount, updated: updatedCount };
+  };
+
   // Loyalty & Rewards (Part 07)
   const awardLoyaltyPoints = (sale: Sale, customerId: string): LoyaltyLedgerEntry | null => {
     const ratio = store.settings?.loyaltyPointsPerCurrency || 1;
@@ -1558,6 +1611,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateStaff(id, { active: !target.active });
   };
 
+  const commitStaffUpsertImport = (payload: {
+    newItems: CreateStaffInput[];
+    updateItems: { id: string; updates: UpdateStaffInput }[];
+  }): { added: number; updated: number } => {
+    let currentStaff = [...staffUsers];
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    for (const item of payload.updateItems) {
+      const existing = currentStaff.find((s) => s.id === item.id);
+      if (existing) {
+        const updated = StaffService.updateStaff(item.id, item.updates, currentStaff);
+        currentStaff = currentStaff.map((s) => (s.id === item.id ? updated : s));
+        FirebaseService.syncStaffUser(updated);
+        updatedCount++;
+      }
+    }
+
+    for (const item of payload.newItems) {
+      const created = StaffService.createStaff(item, currentStaff);
+      currentStaff = [created, ...currentStaff];
+      FirebaseService.syncStaffUser(created);
+      addedCount++;
+    }
+
+    setStaffUsers(currentStaff);
+    StorageService.safeSet(STORAGE_KEYS.STAFF, currentStaff);
+    return { added: addedCount, updated: updatedCount };
+  };
+
   const isSupplierCodeAvailable = (code: string, excludeId?: string): boolean => {
     return SupplierService.isSupplierCodeUnique(code, suppliers, excludeId);
   };
@@ -1603,6 +1686,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       success: true,
       message: `Supplier "${target.supplierName}" was successfully removed.`,
     };
+  };
+
+  const commitSuppliersUpsertImport = (payload: {
+    newItems: CreateSupplierInput[];
+    updateItems: { id: string; updates: UpdateSupplierInput }[];
+  }): { added: number; updated: number } => {
+    let currentSuppliers = [...suppliers];
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    for (const item of payload.updateItems) {
+      const existing = currentSuppliers.find((s) => s.id === item.id);
+      if (existing) {
+        const updated = SupplierService.updateSupplier(item.id, item.updates, currentSuppliers);
+        currentSuppliers = currentSuppliers.map((s) => (s.id === item.id ? updated : s));
+        FirebaseService.syncSupplier(updated);
+        updatedCount++;
+      }
+    }
+
+    for (const item of payload.newItems) {
+      const created = SupplierService.createSupplier(item, currentSuppliers);
+      currentSuppliers = [created, ...currentSuppliers];
+      FirebaseService.syncSupplier(created);
+      addedCount++;
+    }
+
+    setSuppliers(currentSuppliers);
+    suppliersRef.current = currentSuppliers;
+    StorageService.safeSet(STORAGE_KEYS.SUPPLIERS, currentSuppliers);
+    return { added: addedCount, updated: updatedCount };
   };
 
   const createPurchase = (input: CreatePurchaseInput): Purchase => {
@@ -1745,6 +1859,99 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.removeItem(STORAGE_KEYS.LOYALTY);
     localStorage.removeItem(STORAGE_KEYS.STAFF);
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_CASHIER_ID);
+    FirebaseService.clearCollectionsFromCloud([
+      'products',
+      'suppliers',
+      'customers',
+      'sales',
+      'purchases',
+      'inventory_movements',
+      'loyalty_ledger',
+    ]).catch((err) => console.warn('Firestore purge error during reset:', err));
+    FirebaseService.syncStore(INITIAL_STORE);
+  };
+
+  const clearStoreCategories = async (
+    options: ClearCategoriesOptions
+  ): Promise<{ success: boolean; message: string }> => {
+    const isAll = !!(options.products && options.suppliers && options.customers && options.staff);
+    const collectionsToClear: string[] = [];
+    const clearedNames: string[] = [];
+
+    if (options.products) {
+      setProducts([]);
+      productsRef.current = [];
+      setMovements([]);
+      setSales([]);
+      StorageService.safeSet(STORAGE_KEYS.PRODUCTS, []);
+      StorageService.safeSet(STORAGE_KEYS.MOVEMENTS, []);
+      StorageService.safeSet(STORAGE_KEYS.SALES, []);
+      collectionsToClear.push('products', 'sales', 'inventory_movements');
+      clearedNames.push('Produk & Jualan');
+    }
+
+    if (options.suppliers) {
+      setSuppliers([]);
+      suppliersRef.current = [];
+      setPurchases([]);
+      StorageService.safeSet(STORAGE_KEYS.SUPPLIERS, []);
+      StorageService.safeSet(STORAGE_KEYS.PURCHASES, []);
+      collectionsToClear.push('suppliers', 'purchases');
+      clearedNames.push('Pembekal & Pembelian');
+    }
+
+    if (options.customers) {
+      setCustomers([]);
+      setLoyaltyLedger([]);
+      StorageService.safeSet(STORAGE_KEYS.CUSTOMERS, []);
+      StorageService.safeSet(STORAGE_KEYS.LOYALTY, []);
+      collectionsToClear.push('customers', 'loyalty_ledger');
+      clearedNames.push('Pelanggan & Ganjaran');
+    }
+
+    if (options.staff) {
+      setStaffUsers([]);
+      setActiveStaff(null);
+      StorageService.safeSet(STORAGE_KEYS.STAFF, []);
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_CASHIER_ID);
+      collectionsToClear.push('staff_users');
+      clearedNames.push('Pekerja / Staf');
+    }
+
+    if (isAll) {
+      setStore(INITIAL_STORE);
+      StorageService.safeSet(STORAGE_KEYS.STORE, INITIAL_STORE);
+    }
+
+    try {
+      if (collectionsToClear.length > 0) {
+        await FirebaseService.clearCollectionsFromCloud(collectionsToClear);
+      }
+      if (isAll) {
+        await FirebaseService.syncStore(INITIAL_STORE);
+      }
+      return {
+        success: true,
+        message: isAll
+          ? 'Semua kategori telah berjaya dikosongkan. Sistem sedia bermula dari kosong.'
+          : `Kategori [${clearedNames.join(', ')}] telah dikosongkan dan sedia bermula dari kosong.`,
+      };
+    } catch (err: any) {
+      console.error('Error clearing store categories:', err);
+      return {
+        success: true,
+        message: `Data tempatan [${clearedNames.join(', ')}] telah dikosongkan. Ralat penyelarasan awan: ${err?.message || 'Gagal selaras awan'}`,
+      };
+    }
+  };
+
+  const clearAllStoreData = async (): Promise<{ success: boolean; message: string }> => {
+    return clearStoreCategories({
+      products: true,
+      suppliers: true,
+      customers: true,
+      staff: true,
+    });
   };
 
   const exportStoreData = (): StoreBackupPayload => {
@@ -1845,6 +2052,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleSupplierActive,
         deleteSupplier,
         isSupplierCodeAvailable,
+        commitSuppliersUpsertImport,
         createPurchase,
         completePurchase,
         createAndCompletePurchase,
@@ -1854,13 +2062,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleCustomerActive,
         deleteCustomer,
         isCustomerCodeAvailable,
+        commitCustomersUpsertImport,
         awardLoyaltyPoints,
         redeemLoyaltyPoints,
         addStaff,
         updateStaff,
         toggleStaffActive,
         setActiveStaff,
+        commitStaffUpsertImport,
         resetToDemo,
+        clearAllStoreData,
+        clearStoreCategories,
         updateStoreDetails,
         updateStore: updateStoreDetails,
         exportStoreData,

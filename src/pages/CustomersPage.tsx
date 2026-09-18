@@ -26,6 +26,7 @@ import {
   ArrowUpRight,
   Filter,
   Download,
+  UploadCloud,
   SearchCheck,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
@@ -38,6 +39,7 @@ import { CsvService } from '../services/csvService';
 import { DuplicateAuditService } from '../services/duplicateAuditService';
 import { SmartInputService } from '../services/smartInputService';
 import { DuplicateAuditModal } from '../components/common/DuplicateAuditModal';
+import { EntityCsvImportModal } from '../components/common/EntityCsvImportModal';
 
 export const CustomersPage: React.FC = () => {
   const {
@@ -50,6 +52,7 @@ export const CustomersPage: React.FC = () => {
     toggleCustomerActive,
     deleteCustomer,
     isCustomerCodeAvailable,
+    commitCustomersUpsertImport,
     redeemLoyaltyPoints,
     isAdminMode,
     requireAdmin,
@@ -61,6 +64,7 @@ export const CustomersPage: React.FC = () => {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [selectedCustomerForDetail, setSelectedCustomerForDetail] = useState<Customer | null>(null);
   const [viewReceiptSale, setViewReceiptSale] = useState<Sale | null>(null);
@@ -345,6 +349,18 @@ export const CustomersPage: React.FC = () => {
           >
             <Download className="w-4 h-4 text-stone-600" />
             <span>Export CSV</span>
+          </button>
+
+          {/* Import CSV Button */}
+          <button
+            type="button"
+            id="import-customers-csv-btn"
+            onClick={() => setIsImportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 transition shadow-2xs cursor-pointer"
+            title="Import senarai pelanggan dari fail CSV"
+          >
+            <UploadCloud className="w-4 h-4 text-stone-600" />
+            <span>Import CSV</span>
           </button>
 
           <button
@@ -1074,6 +1090,18 @@ export const CustomersPage: React.FC = () => {
         onClose={() => setIsDuplicateAuditOpen(false)}
         auditGroups={duplicateAuditGroups}
         entityType="Pelanggan"
+      />
+
+      {/* Customer CSV Import Modal */}
+      <EntityCsvImportModal
+        id="customer-csv-import-modal"
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        entityName="Pelanggan"
+        entityType="CUSTOMER"
+        onDownloadTemplate={() => CsvService.downloadCustomersCsvTemplate()}
+        onValidate={(rows) => CsvService.validateCustomersUpsert(rows, customers)}
+        onCommit={(res) => commitCustomersUpsertImport(res)}
       />
     </div>
   );
