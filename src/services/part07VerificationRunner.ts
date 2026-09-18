@@ -421,11 +421,11 @@ export class Part07VerificationRunner {
       const emptyStaffCashiers = StaffService.getActiveCashiers([]);
       const snap1 = StaffService.getCashierSnapshot(null);
 
-      // Scenario 2: OWNER exists (Pak Samad) but no CASHIER exists -> Display label remains "Store Owner"
+      // Scenario 2: OWNER exists (Pemilik Kedai) but no CASHIER exists -> Display label remains "Store Owner"
       const ownerStaff: StaffUser = {
         id: 'stf-001',
         userCode: 'STF-001',
-        name: 'Pak Samad',
+        name: 'Pemilik Kedai',
         role: 'OWNER',
         active: true,
         createdAt: new Date().toISOString(),

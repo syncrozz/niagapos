@@ -44,7 +44,7 @@ export const INITIAL_STAFF: StaffUser[] = [
     id: 'stf-001',
     userCode: 'STF-001',
     staffCode: 'STF-001',
-    name: 'Pak Samad',
+    name: 'Pemilik Kedai',
     role: 'OWNER',
     active: true,
     createdAt: '2026-09-01T08:00:00Z',

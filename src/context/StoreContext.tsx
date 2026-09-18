@@ -189,7 +189,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Current primary role: Admin / Store Owner (foundation ready for future roles)
   const [currentUser] = useState<UserProfile>({
     id: 'user-owner-001',
-    name: 'Pak Samad (Store Owner)',
+    name: 'Store Owner',
     role: 'ADMIN',
     storeId: INITIAL_STORE.id,
   });
@@ -282,11 +282,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>(() => {
-    return StorageService.safeParse<StaffUser[]>(
+    const loaded = StorageService.safeParse<StaffUser[]>(
       localStorage.getItem(STORAGE_KEYS.STAFF),
       INITIAL_STAFF,
       (val) => Array.isArray(val)
     );
+    const sanitized = loaded.map((s) =>
+      s.name.toLowerCase().includes('pak samad') || s.name.toLowerCase().includes('samad')
+        ? { ...s, name: 'Pemilik Kedai' }
+        : s
+    );
+    if (JSON.stringify(loaded) !== JSON.stringify(sanitized)) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(sanitized));
+      } catch {
+        // ignore
+      }
+    }
+    return sanitized;
   });
 
   const [activeStaff, setActiveStaff] = useState<StaffUser | null>(() => {
@@ -295,7 +308,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       INITIAL_STAFF,
       (val) => Array.isArray(val)
     );
-    const activeCashiers = StaffService.getActiveCashiers(savedStaff);
+    const sanitizedStaff = savedStaff.map((s) =>
+      s.name.toLowerCase().includes('pak samad') || s.name.toLowerCase().includes('samad')
+        ? { ...s, name: 'Pemilik Kedai' }
+        : s
+    );
+    const activeCashiers = StaffService.getActiveCashiers(sanitizedStaff);
     if (activeCashiers.length === 0) {
       return null;
     }
@@ -448,10 +466,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         StorageService.safeSet(STORAGE_KEYS.LOYALTY, cloudData.loyaltyLedger);
       }
       if (cloudData.staffUsers && cloudData.staffUsers.length > 0) {
-        setStaffUsers(cloudData.staffUsers);
-        StorageService.safeSet(STORAGE_KEYS.STAFF, cloudData.staffUsers);
+        const sanitized = StaffService.sanitizeStaffMembers(cloudData.staffUsers);
+        setStaffUsers(sanitized);
+        StorageService.safeSet(STORAGE_KEYS.STAFF, sanitized);
       }
-      setCloudSyncStatus('CONNECTED');
       setLastCloudSync(new Date());
       return true;
     } catch (err) {
@@ -555,8 +573,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         StorageService.safeSet(STORAGE_KEYS.LOYALTY, cloudData.loyaltyLedger);
       }
       if (cloudData.staffUsers && cloudData.staffUsers.length > 0) {
-        setStaffUsers(cloudData.staffUsers);
-        StorageService.safeSet(STORAGE_KEYS.STAFF, cloudData.staffUsers);
+        const sanitized = StaffService.sanitizeStaffMembers(cloudData.staffUsers);
+        setStaffUsers(sanitized);
+        StorageService.safeSet(STORAGE_KEYS.STAFF, sanitized);
       }
 
       // 4. Real-time listener: receive updates instantly when any device updates data
@@ -605,8 +624,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         onStaffUpdated: (remoteStaff) => {
           if (!isMountedRef.current || !remoteStaff) return;
-          setStaffUsers(remoteStaff);
-          StorageService.safeSet(STORAGE_KEYS.STAFF, remoteStaff);
+          const sanitized = StaffService.sanitizeStaffMembers(remoteStaff);
+          setStaffUsers(sanitized);
+          StorageService.safeSet(STORAGE_KEYS.STAFF, sanitized);
         },
         onStoreUpdated: (remoteStore) => {
           if (!isMountedRef.current || !remoteStore) return;

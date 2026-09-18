@@ -186,6 +186,24 @@ export class StaffService {
   }
 
   /**
+   * Sanitizes staff members to remove any legacy unauthorized or outdated names.
+   */
+  public static sanitizeStaffMembers(staff: StaffUser[]): StaffUser[] {
+    if (!Array.isArray(staff)) return [];
+    return staff.map((s) => {
+      if (!s || !s.name) return s;
+      const lower = s.name.toLowerCase();
+      if (lower.includes('pak samad') || lower.includes('samad')) {
+        return {
+          ...s,
+          name: s.role === 'OWNER' ? 'Pemilik Kedai' : 'Kakitangan Kedai',
+        };
+      }
+      return s;
+    });
+  }
+
+  /**
    * Resolves the current cashier name snapshot for POS transactions.
    * If a valid active cashier staff is provided, uses their name.
    * Otherwise falls back strictly to "Store Owner".
