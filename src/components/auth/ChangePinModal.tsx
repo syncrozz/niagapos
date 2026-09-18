@@ -76,10 +76,17 @@ export const ChangePinModal: React.FC<ChangePinModalProps> = ({
           onClose();
         }, 1200);
       } else {
-        setError(res.error || 'Gagal mengemas kini PIN. Sila periksa PIN semasa anda.');
+        const rawErr = res.error || '';
+        const safeError = rawErr.includes('JSON') || rawErr.includes('token') || rawErr.includes('The page')
+          ? 'PIN semasa tidak tepat atau sambungan terputus. Sila semak semula PIN anda.'
+          : rawErr || 'Gagal mengemas kini PIN. Sila periksa PIN semasa anda.';
+        setError(safeError);
       }
-    } catch {
-      setError('Ralat semasa menghubungi pelayan.');
+    } catch (err: any) {
+      const msg = typeof err?.message === 'string' && !err.message.includes('JSON') && !err.message.includes('token')
+        ? err.message
+        : 'Ralat semasa memproses penukaran PIN. Sila cuba lagi.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
