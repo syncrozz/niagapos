@@ -266,6 +266,13 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                       {new Date(createdDetails.workspace.trialExpiresAt).toLocaleDateString('ms-MY')}
                     </span>
                   </div>
+                  <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-800/60 col-span-2 flex items-center justify-between">
+                    <div>
+                      <span className="text-emerald-400 text-[10px] block font-semibold">PIN Keselamatan Klien (Lalai)</span>
+                      <span className="font-mono font-bold text-white text-sm tracking-wider">1234</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-300/80">Klien dinasihatkan menukar PIN semasa persediaan</span>
+                  </div>
                 </div>
 
                 {/* Onboarding Pack Copy */}
@@ -273,10 +280,10 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                   <button
                     id="copy-invite-pack-btn"
                     onClick={() => {
-                      const pack = `Salam ${createdDetails.workspace.ownerName},\n\nAkaun NiagaPOS V2 untuk "${createdDetails.workspace.workspaceName}" telah berjaya didaftarkan!\n\nPautan Akses Rasmi:\n${createdDetails.accessUrl}\n\nEmel Log Masuk: ${createdDetails.workspace.ownerEmail}\nPeranan: OWNER (Pemilik)\nTempoh Percubaan: ${createdDetails.workspace.trialDurationDays} Hari\n\nSila layari pautan di atas untuk log masuk dan mulakan pengurusan inventori & jualan kedai anda.`;
+                      const pack = `Salam ${createdDetails.workspace.ownerName},\n\nAkaun NiagaPOS V2 untuk "${createdDetails.workspace.workspaceName}" telah berjaya didaftarkan!\n\nPautan Akses Rasmi:\n${createdDetails.accessUrl}\n\nPIN Lalai Klien: 1234\n(Sila tukar PIN ini dalam menu Tetapan selepas log masuk pertama)\n\nEmel Log Masuk: ${createdDetails.workspace.ownerEmail}\nPeranan: OWNER (Pemilik)\nTempoh Percubaan: ${createdDetails.workspace.trialDurationDays} Hari\n\nSila layari pautan di atas untuk log masuk dan mulakan pengurusan inventori & jualan kedai anda.`;
                       copyToClipboard(pack, 'invite');
                     }}
-                    className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
+                    className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
                   >
                     {copiedInvite ? (
                       <>

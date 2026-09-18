@@ -379,6 +379,19 @@ export class WorkspaceService {
     this.saveWorkspacesLocal(all);
     this.saveWorkspaceMembersLocal(workspaceId, [ownerMember]);
 
+    // 5. Initialize Client PIN Authentication with Default PIN: 1234
+    try {
+      fetch('/api/auth/client/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          workspaceSlug: cleanSlug,
+          customPin: '1234',
+        }),
+      }).catch((e) => console.warn('[WorkspaceService] Server PIN init async notice:', e));
+    } catch {}
+
     const accessUrl = this.getClientAccessUrl(cleanSlug);
 
     return {
@@ -389,6 +402,7 @@ export class WorkspaceService {
         accessUrl,
         inviteMethod: 'FIREBASE_AUTH_INVITE',
         inviteToken: `inv_${workspaceId}_${ownerUid}`,
+        defaultPin: '1234',
       },
     };
   }

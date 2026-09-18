@@ -25,8 +25,23 @@ import { MasterAdminPage } from './pages/MasterAdminPage';
 import { parseRoute, pushRoute } from './services/urlRouter';
 import { WorkspaceService } from './services/workspaceService';
 import type { Workspace } from './types/workspace';
-import { AlertOctagon, Clock, ShieldAlert, Ban, ExternalLink, Building2 } from 'lucide-react';
+import {
+  AlertOctagon,
+  Clock,
+  ShieldAlert,
+  Ban,
+  ExternalLink,
+  Building2,
+  AlertTriangle,
+  KeyRound,
+  Lock,
+  ShieldCheck,
+} from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ClientLoginScreen } from './components/auth/ClientLoginScreen';
+import { ChangePinModal } from './components/auth/ChangePinModal';
+import { ClientAuthService } from './services/clientAuthService';
+import type { ClientAuthSession } from './types/auth';
 
 function WorkspaceTrialBanner({ workspace }: { workspace: Workspace }) {
   const trialStatus = WorkspaceService.calculateTrialStatus(workspace);
@@ -91,11 +106,17 @@ function WorkspaceTrialBanner({ workspace }: { workspace: Workspace }) {
 }
 
 function MainAppContent() {
-  const { store, updateStoreDetails } = useStore();
+  const { store, updateStoreDetails, isAdminMode } = useStore();
   const [route, setRoute] = useState(() => parseRoute(window.location.pathname));
   const [activePage, setActivePage] = useState<ActivePage>(() => route.systemPage || 'pos');
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [isResolvingWorkspace, setIsResolvingWorkspace] = useState<boolean>(() => Boolean(route.workspaceSlug));
+  const [clientSession, setClientSession] = useState<ClientAuthSession | null>(() => {
+    const parsed = parseRoute(typeof window !== 'undefined' ? window.location.pathname : '');
+    return parsed.workspaceSlug ? ClientAuthService.getSession(parsed.workspaceSlug) : null;
+  });
+  const [isChangePinModalOpen, setIsChangePinModalOpen] = useState(false);
+  const [pinNotice, setPinNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -132,6 +153,28 @@ function MainAppContent() {
       setIsResolvingWorkspace(false);
     }
   }, [route.workspaceSlug]);
+
+  // Sync client session when currentWorkspace changes
+  useEffect(() => {
+    if (currentWorkspace) {
+      const sess = ClientAuthService.getSession(currentWorkspace.workspaceSlug);
+      setClientSession(sess);
+    } else {
+      setClientSession(null);
+    }
+  }, [currentWorkspace]);
+
+  // Subscribe to external ClientAuthService state updates
+  useEffect(() => {
+    const unsub = ClientAuthService.subscribe((sess) => {
+      if (currentWorkspace && sess?.workspaceSlug === currentWorkspace.workspaceSlug) {
+        setClientSession(sess);
+      } else if (!sess && currentWorkspace) {
+        setClientSession(null);
+      }
+    });
+    return unsub;
+  }, [currentWorkspace]);
 
   // Sync document title and store branding to active workspace
   useEffect(() => {
@@ -236,6 +279,25 @@ function MainAppContent() {
     );
   }
 
+  // 4. Client Workspace PIN Authentication Barrier
+  // If workspace is active, user is NOT in Master Admin mode, and has no authenticated session:
+  // Prompt for Client PIN
+  if (currentWorkspace && !isAdminMode && !clientSession) {
+    return (
+      <ClientLoginScreen
+        workspace={currentWorkspace}
+        onAuthenticated={(session) => {
+          setClientSession(session);
+        }}
+        onExit={() => {
+          pushRoute('/');
+          setRoute(parseRoute('/'));
+          setCurrentWorkspace(null);
+        }}
+      />
+    );
+  }
+
   const renderActivePage = () => {
     switch (activePage) {
       case 'dashboard':
@@ -266,9 +328,70 @@ function MainAppContent() {
       {/* Workspace Trial Notification Bar */}
       {currentWorkspace && <WorkspaceTrialBanner workspace={currentWorkspace} />}
 
-      <AppShell activePage={activePage} onNavigate={handleNavigate}>
+      {/* Default PIN Security Warning Banner */}
+      {currentWorkspace && (clientSession?.isDefaultPin || clientSession?.mustChangeDefaultPin) && !isAdminMode && (
+        <div className="bg-amber-500 text-stone-950 px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-xs z-20">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-stone-950" />
+            <span>
+              Perhatian Keselamatan: Workspace <strong>{currentWorkspace.workspaceName}</strong> masih menggunakan <strong>PIN Keselamatan Lalai (1234)</strong>. Sila tukar PIN anda demi melindungi operasi perniagaan dan akaun jualan anda.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            <button
+              type="button"
+              id="banner-change-pin-btn"
+              onClick={() => setIsChangePinModalOpen(true)}
+              className="px-3 py-1 bg-stone-900 text-white rounded-lg text-xs font-bold hover:bg-stone-800 transition cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              <span>Tukar PIN Sekarang</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notification toast for PIN change / security notice */}
+      {pinNotice && (
+        <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-xs z-20 animate-in fade-in">
+          <span>{pinNotice}</span>
+          <button
+            type="button"
+            onClick={() => setPinNotice(null)}
+            className="text-white hover:opacity-80 ml-2 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <AppShell
+        activePage={activePage}
+        onNavigate={handleNavigate}
+        currentWorkspace={currentWorkspace}
+        onLogoutWorkspace={() => {
+          if (currentWorkspace) {
+            ClientAuthService.logout(currentWorkspace.workspaceSlug);
+            setClientSession(null);
+          }
+        }}
+        onChangePin={() => setIsChangePinModalOpen(true)}
+      >
         {renderActivePage()}
       </AppShell>
+
+      {/* Change Workspace PIN Modal */}
+      {currentWorkspace && (
+        <ChangePinModal
+          isOpen={isChangePinModalOpen}
+          workspaceSlug={currentWorkspace.workspaceSlug}
+          onClose={() => setIsChangePinModalOpen(false)}
+          onSuccess={(msg) => {
+            setPinNotice(msg);
+            setTimeout(() => setPinNotice(null), 5000);
+          }}
+        />
+      )}
     </div>
   );
 }

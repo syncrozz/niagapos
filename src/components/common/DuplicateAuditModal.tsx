@@ -2,19 +2,25 @@ import React, { useEffect } from 'react';
 import { AlertTriangle, CheckCircle2, ShieldAlert, X } from 'lucide-react';
 import { DuplicateGroup } from '../../services/duplicateAuditService';
 
-interface DuplicateAuditModalProps {
+export interface DuplicateAuditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  entityTitle: string;
-  duplicateGroups: DuplicateGroup<any>[];
+  entityTitle?: string;
+  entityType?: string;
+  duplicateGroups?: DuplicateGroup<any>[];
+  auditGroups?: DuplicateGroup<any>[];
 }
 
 export const DuplicateAuditModal: React.FC<DuplicateAuditModalProps> = ({
   isOpen,
   onClose,
   entityTitle,
+  entityType,
   duplicateGroups,
+  auditGroups,
 }) => {
+  const title = entityTitle || entityType || 'Rekod';
+  const groups = duplicateGroups || auditGroups || [];
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -47,7 +53,7 @@ export const DuplicateAuditModal: React.FC<DuplicateAuditModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-stone-900">
-                Audit Duplikasi: {entityTitle}
+                Audit Duplikasi: {title}
               </h3>
               <p className="text-[11px] text-stone-500">
                 SES 4.4 Locked: Pengesanan &amp; Semakan Sahaja (Tiada Pemadaman Automatik)
@@ -65,14 +71,14 @@ export const DuplicateAuditModal: React.FC<DuplicateAuditModalProps> = ({
 
         {/* Content */}
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          {duplicateGroups.length === 0 ? (
+          {groups.length === 0 ? (
             <div className="text-center py-8">
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h4 className="text-sm font-bold text-stone-800">Tiada Duplikasi Dikesan</h4>
               <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                Semua entiti dalam kategori {entityTitle} adalah unik mengikut kriteria semakan integriti data.
+                Semua entiti dalam kategori {title} adalah unik mengikut kriteria semakan integriti data.
               </p>
             </div>
           ) : (
@@ -87,7 +93,7 @@ export const DuplicateAuditModal: React.FC<DuplicateAuditModalProps> = ({
               </div>
 
               <div className="space-y-3">
-                {duplicateGroups.map((group, gIdx) => (
+                {groups.map((group, gIdx) => (
                   <div
                     key={gIdx}
                     className="p-3.5 rounded-lg border border-stone-200 bg-stone-50/50 space-y-2"

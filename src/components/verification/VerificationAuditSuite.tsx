@@ -1066,7 +1066,7 @@ export const VerificationAuditSuite: React.FC = () => {
                         </span>
                         <div>
                           <h4 className="text-xs font-bold text-stone-900 flex items-center gap-2">
-                            <span>{t.name}</span>
+                            <span>{t.name || t.title}</span>
                             <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-stone-100 text-stone-500">
                               {t.category}
                             </span>

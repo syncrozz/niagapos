@@ -8,7 +8,7 @@ interface ModalProps {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -36,13 +36,20 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
-  const maxWidthClasses = {
+  const normalizedKey = maxWidth.startsWith('max-w-') ? maxWidth.replace('max-w-', '') : maxWidth;
+
+  const maxWidthClasses: Record<string, string> = {
     sm: 'max-w-sm',
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
   };
+
+  const chosenClass = maxWidthClasses[normalizedKey] || (maxWidth.startsWith('max-w-') ? maxWidth : `max-w-${maxWidth}`);
 
   return (
     <div
@@ -50,7 +57,7 @@ export const Modal: React.FC<ModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs select-none"
     >
       <div
-        className={`bg-white rounded-xl shadow-xl border border-stone-200 w-full ${maxWidthClasses[maxWidth]} overflow-hidden animate-in fade-in zoom-in-95 duration-150 select-text`}
+        className={`bg-white rounded-xl shadow-xl border border-stone-200 w-full ${chosenClass} overflow-hidden animate-in fade-in zoom-in-95 duration-150 select-text`}
       >
         <div className="flex items-start justify-between p-5 border-b border-stone-100 bg-stone-50/50">
           <div>

@@ -26,6 +26,8 @@ import {
   Laptop,
   Building2,
   ExternalLink,
+  KeyRound,
+  Lock,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { UserRole, StaffRole, StaffUser } from '../types';
@@ -34,7 +36,9 @@ import { NIAGAPOS_ASSETS } from '../constants/branding';
 import { PWAInstallButton } from '../components/common/PWAInstallButton';
 import { StaffService } from '../services/staffService';
 import { StorageService, StoreBackupPayload } from '../services/storageService';
-import { pushRoute } from '../services/urlRouter';
+import { pushRoute, parseRoute } from '../services/urlRouter';
+import { ClientAuthService } from '../services/clientAuthService';
+import { ChangePinModal } from '../components/auth/ChangePinModal';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -132,6 +136,21 @@ export const SettingsPage: React.FC = () => {
   const [staffFormRole, setStaffFormRole] = useState<StaffRole>('CASHIER');
   const [staffFormActive, setStaffFormActive] = useState(true);
   const [staffFormError, setStaffFormError] = useState<string | null>(null);
+
+  // Client Workspace PIN & Auth State
+  const [activeSession, setActiveSession] = useState(() => ClientAuthService.getActiveSession());
+  const [isChangePinOpen, setIsChangePinOpen] = useState(false);
+  const [pinSuccessMsg, setPinSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = ClientAuthService.subscribe((sess) => {
+      setActiveSession(sess);
+    });
+    return unsub;
+  }, []);
+
+  const routeInfo = parseRoute(typeof window !== 'undefined' ? window.location.pathname : '');
+  const activeWorkspaceSlug = activeSession?.workspaceSlug || routeInfo.workspaceSlug || 'demo';
 
   // Keyboard Escape listener to close active modals
   useEffect(() => {
@@ -1029,6 +1048,71 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Client Workspace PIN Security Card */}
+      <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-emerald-700" />
+              <h2 className="text-base font-bold text-stone-900">
+                Keselamatan &amp; PIN Akses Workspace
+              </h2>
+              {activeSession?.isDefaultPin ? (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                  PIN Lalai (1234)
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  PIN Terselamat
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-stone-500 mt-1 max-w-xl">
+              Setiap workspace klien dilindungi dengan 4-digit PIN keselamatan bebas. PIN dienkripsi dengan selamat (PBKDF2) dan diasingkan sepenuhnya daripada Master Admin.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            id="settings-change-pin-btn"
+            onClick={() => setIsChangePinOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer shrink-0"
+          >
+            <KeyRound className="w-4 h-4 text-amber-400" />
+            <span>Tukar PIN Workspace</span>
+          </button>
+        </div>
+
+        {pinSuccessMsg && (
+          <div className="mt-4 p-3 rounded-lg text-xs bg-emerald-50 text-emerald-900 border border-emerald-200 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{pinSuccessMsg}</span>
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="p-3 bg-stone-50 rounded-lg border border-stone-200/70 space-y-1">
+            <div className="font-semibold text-stone-800 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Pengasingan Akses Multi-Tenant</span>
+            </div>
+            <p className="text-[11px] text-stone-600 leading-relaxed">
+              PIN ini hanya sah untuk workspace <strong>/{activeWorkspaceSlug}</strong>. Master Admin PIN (5313) kekal eksklusif untuk platform admin dan tidak boleh digunakan untuk log masuk akaun klien.
+            </p>
+          </div>
+
+          <div className="p-3 bg-stone-50 rounded-lg border border-stone-200/70 space-y-1">
+            <div className="font-semibold text-stone-800 flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Perlindungan Brute-Force</span>
+            </div>
+            <p className="text-[11px] text-stone-600 leading-relaxed">
+              Sistem mengehadkan maksimum 5 percubaan PIN salah. Sekatan sementara 30 saat dikuatkuasakan secara automatik di peringkat pelayan untuk menghalang sebarang serangan kata laluan.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Regression & Verification Testing Suite */}
       <VerificationAuditSuite />
 
@@ -1128,6 +1212,17 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Change Workspace PIN Modal */}
+      <ChangePinModal
+        isOpen={isChangePinOpen}
+        workspaceSlug={activeWorkspaceSlug}
+        onClose={() => setIsChangePinOpen(false)}
+        onSuccess={(msg) => {
+          setPinSuccessMsg(msg);
+          setTimeout(() => setPinSuccessMsg(null), 6000);
+        }}
+      />
     </div>
   );
 };

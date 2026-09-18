@@ -18,8 +18,12 @@ import {
   CloudOff,
   RefreshCw,
   ChevronRight,
+  Lock,
+  KeyRound,
+  LogOut,
 } from 'lucide-react';
 import { ActivePage } from '../../types';
+import type { Workspace } from '../../types/workspace';
 import { useStore } from '../../context/StoreContext';
 import { SupportModal } from '../common/SupportModal';
 import { NIAGAPOS_ASSETS } from '../../constants/branding';
@@ -28,12 +32,18 @@ import { PWAInstallButton } from '../common/PWAInstallButton';
 interface AppShellProps {
   activePage: ActivePage;
   onNavigate: (page: ActivePage) => void;
+  currentWorkspace?: Workspace | null;
+  onLogoutWorkspace?: () => void;
+  onChangePin?: () => void;
   children: React.ReactNode;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
   activePage,
   onNavigate,
+  currentWorkspace,
+  onLogoutWorkspace,
+  onChangePin,
   children,
 }) => {
   const {
@@ -145,6 +155,11 @@ export const AppShell: React.FC<AppShellProps> = ({
                         store.name
                       )}
                     </span>
+                    {currentWorkspace && (
+                      <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 border border-stone-200">
+                        /{currentWorkspace.workspaceSlug}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -156,6 +171,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
                 const isSettings = item.id === 'settings';
+                const hideIcon = ['dashboard', 'products', 'inventory', 'purchases', 'suppliers', 'customers', 'reports'].includes(item.id);
                 return (
                   <button
                     key={item.id}
@@ -165,14 +181,18 @@ export const AppShell: React.FC<AppShellProps> = ({
                     title={isSettings ? 'Tetapan (Settings)' : item.label}
                     aria-label={item.label}
                     className={`flex items-center justify-center rounded-lg text-xs lg:text-sm transition-all ${
-                      isSettings ? 'p-2' : 'gap-1.5 px-2.5 py-1.5'
+                      isSettings
+                        ? 'p-2'
+                        : hideIcon
+                        ? 'px-2 lg:px-2.5 py-1.5'
+                        : 'gap-1.5 px-2.5 py-1.5'
                     } ${
                       isActive
                         ? 'bg-emerald-600 text-white shadow-xs font-semibold'
                         : 'text-stone-600 hover:text-emerald-800 hover:bg-emerald-50/70 font-medium'
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                    {!hideIcon && <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />}
                     {!isSettings && <span>{item.label}</span>}
                   </button>
                 );
@@ -224,32 +244,46 @@ export const AppShell: React.FC<AppShellProps> = ({
               {/* PWA Install Action */}
               <PWAInstallButton variant="header" />
 
-              {/* Mobile Konsol Klien Quick Access */}
-              <button
-                type="button"
-                id="mobile-header-konsol-btn"
-                onClick={() => onNavigate('konsol')}
-                className="sm:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-emerald-300 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
-                title="Buka Konsol Klien NiagaPOS (Master Admin)"
-              >
-                <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="whitespace-nowrap font-medium text-[11px]">Konsol</span>
-              </button>
-
-              {/* Master Admin Console Direct Access (Tablet & Desktop) */}
+              {/* Master Admin Console Direct Access */}
               <button
                 type="button"
                 id="header-master-admin-btn"
                 onClick={() => onNavigate('konsol')}
-                className="hidden sm:flex items-center justify-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-100 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
+                className="flex items-center justify-center p-2 rounded-lg text-xs font-semibold bg-stone-900 hover:bg-stone-950 text-stone-100 border border-stone-700 transition shadow-2xs cursor-pointer shrink-0"
                 title="Buka Konsol Master Admin NiagaPOS V2 (Pendaftaran Klien & Onboarding)"
+                aria-label="Konsol Master Admin"
               >
-                <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="whitespace-nowrap">Konsol Klien</span>
-                <span className="hidden xl:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/60 font-semibold">
-                  ADMIN
-                </span>
+                <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
               </button>
+
+              {/* Workspace PIN & Lock controls when inside a client workspace */}
+              {currentWorkspace && (
+                <div className="flex items-center gap-1">
+                  {onChangePin && (
+                    <button
+                      type="button"
+                      id="header-workspace-change-pin-btn"
+                      onClick={onChangePin}
+                      className="p-1.5 rounded-lg border border-stone-200 bg-stone-50/80 hover:bg-stone-100 text-stone-700 transition cursor-pointer shadow-2xs"
+                      title="Tukar PIN Workspace Klien"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-stone-600" />
+                    </button>
+                  )}
+                  {onLogoutWorkspace && (
+                    <button
+                      type="button"
+                      id="header-workspace-lock-btn"
+                      onClick={onLogoutWorkspace}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50/80 hover:bg-stone-100 text-stone-700 transition cursor-pointer text-xs shadow-2xs"
+                      title="Kunci / Log Keluar Workspace (Akan memerlukan PIN untuk masuk semula)"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-stone-600" />
+                      <span className="hidden lg:inline text-[11px] font-medium">Kunci</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Admin Mode */}
               <button
@@ -262,23 +296,18 @@ export const AppShell: React.FC<AppShellProps> = ({
                     openPinModal();
                   }
                 }}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-2xs cursor-pointer ${
+                className={`flex items-center justify-center p-2 rounded-lg text-xs font-semibold transition shadow-2xs cursor-pointer shrink-0 ${
                   isAdminMode
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-1 ring-emerald-400/30'
                     : 'bg-stone-800 hover:bg-stone-900 text-white'
                 }`}
                 title={isAdminMode ? 'Admin Mode On. Klik untuk keluar dari Admin Mode' : 'Admin Mode'}
+                aria-label={isAdminMode ? 'Admin Mode On' : 'Admin Mode'}
               >
                 {isAdminMode ? (
-                  <>
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-100" />
-                    <span className="whitespace-nowrap">Admin Mode On</span>
-                  </>
+                  <ShieldCheck className="w-4 h-4 text-emerald-100" />
                 ) : (
-                  <>
-                    <Shield className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="whitespace-nowrap">Admin Mode</span>
-                  </>
+                  <Shield className="w-4 h-4 text-amber-400" />
                 )}
               </button>
             </div>

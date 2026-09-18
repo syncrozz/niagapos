@@ -1064,6 +1064,7 @@ export const CustomersPage: React.FC = () => {
           isOpen={!!viewReceiptSale}
           onClose={() => setViewReceiptSale(null)}
           sale={viewReceiptSale}
+          store={store}
         />
       )}
 

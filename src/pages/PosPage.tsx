@@ -666,29 +666,6 @@ export const PosPage: React.FC = () => {
         </div>
       )}
 
-      {/* Flow indicator: SEARCH -> SELECT PRODUCT -> ADD TO CART -> CHECKOUT */}
-      <div className="hidden sm:flex items-center justify-between px-4 py-2.5 bg-white border border-emerald-100/80 rounded-2xl text-xs font-semibold text-stone-700 shadow-2xs">
-        <div className="flex items-center gap-2 text-emerald-800">
-          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
-          <span>Carian & Imbasan</span>
-        </div>
-        <span className="text-stone-300 font-bold">→</span>
-        <div className="flex items-center gap-2 text-emerald-800">
-          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">2</span>
-          <span>Pilih Produk</span>
-        </div>
-        <span className="text-stone-300 font-bold">→</span>
-        <div className="flex items-center gap-2 text-emerald-800">
-          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">3</span>
-          <span>Troli Aktif</span>
-        </div>
-        <span className="text-stone-300 font-bold">→</span>
-        <div className="flex items-center gap-2 text-emerald-800">
-          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">4</span>
-          <span>Selesai & Bayaran</span>
-        </div>
-      </div>
-
       {/* Main Two-Column POS Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Product Selection Grid (7 cols) */}

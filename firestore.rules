@@ -59,6 +59,19 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // ----------------------------------------------------
+    // AUTHENTICATION & SECURITY (SERVER-ONLY RESTRICTION)
+    // ----------------------------------------------------
+    // Strictly prevent client web SDK from reading or writing PIN hashes and auth configs
+    match /workspace_auth/{workspaceId} {
+      allow read, write: if false;
+    }
+
+    // Strictly prevent tampering with administrative audit logs
+    match /audit_logs/{logId} {
+      allow read, write: if false;
+    }
+
     match /workspaces/{workspaceId} {
       allow read, write: if true;
 

@@ -43,6 +43,7 @@ export interface Product {
   id: string;
   storeId: string; // Product belongs to store context (multi-store ready)
   sku: string;
+  barcode?: string;
   name: string;
   category: string;
   costPrice: number; // Cost price stored as data
@@ -200,6 +201,7 @@ export interface LoyaltyLedgerEntry {
   referenceId: string; // e.g. transactionNumber "SALE-000001" or "REWARD-000001"
   description: string;
   createdAt: string;
+  dateTime?: string;
 }
 
 export type StaffRole = 'OWNER' | 'MANAGER' | 'CASHIER' | 'INVENTORY_STAFF';

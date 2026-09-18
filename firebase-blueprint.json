@@ -217,6 +217,37 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "name", "role", "active"]
+    },
+    "WorkspaceAuthConfig": {
+      "title": "WorkspaceAuthConfig",
+      "description": "Tenant workspace PIN authentication configuration and hash",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "workspaceSlug": { "type": "string" },
+        "pinHash": { "type": "string" },
+        "pinVersion": { "type": "number" },
+        "isPinEnabled": { "type": "boolean" },
+        "mustChangeDefaultPin": { "type": "boolean" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["workspaceId", "pinHash", "pinVersion", "isPinEnabled", "mustChangeDefaultPin", "updatedAt", "updatedBy"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Security and administrative audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "workspaceSlug": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "details": { "type": "object" }
+      },
+      "required": ["id", "action", "workspaceId", "performedBy", "timestamp"]
     }
   },
   "firestore": {
@@ -306,6 +337,14 @@
     "/workspaces/{workspaceId}/loyalty_ledger/{ledgerId}": {
       "schema": "LoyaltyLedgerEntry",
       "description": "Tenant loyalty points history"
+    },
+    "/workspace_auth/{workspaceId}": {
+      "schema": "WorkspaceAuthConfig",
+      "description": "Server-managed PIN hashes and authentication configuration (strictly non-public)"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Administrative action and PIN reset audit trail"
     }
   }
 }

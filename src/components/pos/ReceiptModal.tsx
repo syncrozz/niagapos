@@ -4,19 +4,28 @@ import { Sale, Store } from '../../types';
 import { Modal } from '../common/Modal';
 import { NIAGAPOS_ASSETS } from '../../constants/branding';
 
-interface ReceiptModalProps {
+export interface ReceiptModalProps {
   isOpen: boolean;
   onClose: () => void;
   sale: Sale;
-  store: Store;
+  store?: Store;
   isNewSaleSuccess?: boolean;
 }
+
+const DEFAULT_STORE_FALLBACK: Store = {
+  id: 'store-default',
+  name: 'NiagaPOS',
+  code: 'STORE-1',
+  currency: 'RM',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   isOpen,
   onClose,
   sale,
-  store,
+  store = DEFAULT_STORE_FALLBACK,
   isNewSaleSuccess = false,
 }) => {
   const [showAuditDetails, setShowAuditDetails] = useState(true);

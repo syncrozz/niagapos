@@ -66,4 +66,7 @@ export interface ClientAccessDetails {
   accessUrl: string;
   inviteMethod: 'FIREBASE_AUTH_INVITE' | 'DIRECT_LINK';
   inviteToken?: string;
+  defaultPin?: string;
 }
+
+export * from './auth';

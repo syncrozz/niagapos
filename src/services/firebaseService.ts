@@ -571,6 +571,31 @@ export class FirebaseService {
     }
   }
 
+  /**
+   * Purges specific collections in Firestore (e.g. to remove old demo records).
+   */
+  public static async clearCollectionsFromCloud(collectionNames: string[]): Promise<void> {
+    if (!isFirebaseConfigured()) return;
+    const db = this.getDb();
+    if (!db) return;
+    try {
+      this.updateStatus('SYNCING');
+      for (const colName of collectionNames) {
+        const snap = await getDocs(collection(db, colName));
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          snap.docs.forEach((docSnap) => {
+            batch.delete(docSnap.ref);
+          });
+          await batch.commit();
+        }
+      }
+      this.updateStatus('CONNECTED');
+    } catch (err) {
+      console.warn('clearCollectionsFromCloud notice:', err);
+    }
+  }
+
   // -------------------------------------------------------------
   // INITIAL CLOUD SYNC & SEEDING (CHECK EACH COLLECTION INDEPENDENTLY)
   // -------------------------------------------------------------

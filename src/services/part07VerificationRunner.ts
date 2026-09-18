@@ -23,6 +23,10 @@ export interface Part07TestResult {
   status: 'PASSED' | 'FAILED';
   details: string;
   executionTimeMs: number;
+  code?: string;
+  title?: string;
+  expected?: string;
+  actual?: string;
 }
 
 export class Part07VerificationRunner {
@@ -50,7 +54,13 @@ export class Part07VerificationRunner {
     // Test 7: Store Owner Default POS Cashier & Attribution Fallback
     results.push(this.testDefaultStoreOwnerCashierFallback());
 
-    return results;
+    return results.map((r) => ({
+      ...r,
+      code: r.code || r.id,
+      title: r.title || r.name,
+      expected: r.expected || r.description,
+      actual: r.actual || r.details,
+    }));
   }
 
   private static testCustomerCodeGeneration(): Part07TestResult {

@@ -13,6 +13,7 @@ import { INITIAL_STORE } from './seedData';
 export interface VerificationTestResult {
   id: number;
   title: string;
+  name?: string;
   category: 'DATA_MODEL' | 'INVENTORY' | 'POS_SALES' | 'COGS_PROFIT' | 'DISCOUNT' | 'SECURITY_SAFETY' | 'DASHBOARD' | 'UI_UX';
   status: 'PASSED' | 'FAILED';
   expected: string;

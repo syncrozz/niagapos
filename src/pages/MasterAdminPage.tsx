@@ -28,12 +28,17 @@ import {
   Store,
   Users,
   AlertTriangle,
+  KeyRound,
+  FileText,
 } from 'lucide-react';
 import { WorkspaceService, PRODUCTION_DOMAIN } from '../services/workspaceService';
-import { AdminAuthService } from '../services/adminAuthService';
+import { ClientAuthService } from '../services/clientAuthService';
 import { CreateWorkspaceModal } from '../components/workspace/CreateWorkspaceModal';
+import { ResetPinConfirmModal } from '../components/admin/ResetPinConfirmModal';
+import { AuditLogsModal } from '../components/admin/AuditLogsModal';
 import { useStore } from '../context/StoreContext';
 import type { Workspace, ClientAccessDetails } from '../types/workspace';
+import type { AuditLogRecord } from '../types/auth';
 
 interface MasterAdminPageProps {
   onExitAdmin?: () => void;
@@ -45,9 +50,12 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
   onSelectWorkspace,
 }) => {
   const { isAdminMode } = useStore();
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(isAdminMode));
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return Boolean(isAdminMode) || Boolean(ClientAuthService.getMasterAdminSession());
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +63,12 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [loadingList, setLoadingList] = useState(false);
+
+  // Reset PIN and Audit Log modals
+  const [resetPinWorkspace, setResetPinWorkspace] = useState<Workspace | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
 
   // Load Workspaces
   const loadWorkspaces = async () => {
@@ -69,21 +83,42 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
     }
   };
 
+  const loadAuditLogs = async () => {
+    setLoadingAuditLogs(true);
+    try {
+      const logs = await ClientAuthService.getAdminAuditLogs();
+      setAuditLogs(logs);
+    } catch (e) {
+      console.warn('Failed loading audit logs:', e);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       loadWorkspaces();
+      loadAuditLogs();
     }
   }, [isAuthenticated]);
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinError(null);
-    const res = AdminAuthService.verifyPin(pinInput);
-    if (res.success) {
-      setIsAuthenticated(true);
-      setPinInput('');
-    } else {
-      setPinError(res.error || 'PIN tidak sah.');
+    setIsVerifyingPin(true);
+
+    try {
+      const res = await ClientAuthService.adminLogin(pinInput);
+      if (res.success) {
+        setIsAuthenticated(true);
+        setPinInput('');
+      } else {
+        setPinError(res.error || 'PIN Master Admin tidak sah.');
+      }
+    } catch {
+      setPinError('Ralat pengesahan PIN.');
+    } finally {
+      setIsVerifyingPin(false);
     }
   };
 
@@ -209,18 +244,23 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
                 autoFocus
                 placeholder="••••"
                 value={pinInput}
+                disabled={isVerifyingPin}
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 4);
                   setPinInput(val);
                   setPinError(null);
                   if (val.length === 4) {
-                    const res = AdminAuthService.verifyPin(val);
-                    if (res.success) {
-                      setIsAuthenticated(true);
-                      setPinInput('');
-                    } else {
-                      setPinError(res.error || 'PIN tidak sah. Sila cuba lagi.');
-                    }
+                    setIsVerifyingPin(true);
+                    ClientAuthService.adminLogin(val)
+                      .then((res) => {
+                        if (res.success) {
+                          setIsAuthenticated(true);
+                          setPinInput('');
+                        } else {
+                          setPinError(res.error || 'PIN Master Admin tidak sah. Sila cuba lagi.');
+                        }
+                      })
+                      .finally(() => setIsVerifyingPin(false));
                   }
                 }}
                 className="w-full text-center text-2xl tracking-[0.6em] font-mono bg-stone-950 border border-stone-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl py-3 text-white outline-none transition-all"
@@ -230,16 +270,21 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
             <button
               id="master-admin-login-btn"
               type="submit"
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-sm"
+              disabled={isVerifyingPin || pinInput.length < 4}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
             >
-              Log Masuk ke Konsol Pentadbir
+              {isVerifyingPin ? (
+                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <span>Log Masuk ke Konsol Pentadbir</span>
+              )}
             </button>
           </form>
 
           <div className="text-center pt-2">
             <button
               onClick={onExitAdmin}
-              className="text-xs text-stone-500 hover:text-stone-300 transition-colors"
+              className="text-xs text-stone-500 hover:text-stone-300 transition-colors cursor-pointer"
             >
               &larr; Kembali ke Aplikasi Utama
             </button>
@@ -275,9 +320,22 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap ml-auto sm:ml-0">
           <button
+            id="open-audit-logs-btn"
+            onClick={() => {
+              loadAuditLogs();
+              setIsAuditModalOpen(true);
+            }}
+            className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-stone-700"
+            title="Buka Log Audit Keselamatan"
+          >
+            <FileText className="w-3.5 h-3.5 text-amber-400" />
+            <span>Log Audit</span>
+          </button>
+
+          <button
             id="refresh-workspaces-btn"
             onClick={loadWorkspaces}
-            className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors"
+            className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors cursor-pointer"
             title="Muat Semula"
           >
             <RefreshCw className={`w-4 h-4 ${loadingList ? 'animate-spin' : ''}`} />
@@ -285,15 +343,19 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
           <button
             id="open-create-workspace-modal-btn"
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-2 transition-colors shadow-sm"
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Daftar Klien Baharu</span>
           </button>
           {onExitAdmin && (
             <button
-              onClick={onExitAdmin}
-              className="px-3 py-2 rounded-xl bg-stone-800/80 hover:bg-stone-800 text-stone-400 hover:text-stone-200 text-xs font-medium transition-colors"
+              type="button"
+              onClick={() => {
+                ClientAuthService.clearMasterAdminSession();
+                onExitAdmin();
+              }}
+              className="px-3 py-2 rounded-xl bg-stone-800/80 hover:bg-stone-800 text-stone-400 hover:text-stone-200 text-xs font-medium transition-colors cursor-pointer"
             >
               Keluar Admin
             </button>
@@ -537,16 +599,26 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
                             {/* Extend Trial */}
                             <button
                               onClick={() => handleExtendTrial(ws.workspaceId, 30)}
-                              className="px-2 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium transition-colors"
+                              className="px-2 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-medium transition-colors cursor-pointer"
                               title="Lanjutkan 30 Hari"
                             >
                               +30 Hari
                             </button>
 
+                            {/* Reset Client PIN */}
+                            <button
+                              onClick={() => setResetPinWorkspace(ws)}
+                              className="px-2 py-1.5 rounded-lg bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-800/60 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Tetapkan Semula PIN Klien ke 1234"
+                            >
+                              <KeyRound className="w-3 h-3" />
+                              <span>Reset PIN</span>
+                            </button>
+
                             {/* Suspend / Reactivate */}
                             <button
                               onClick={() => handleToggleSuspend(ws)}
-                              className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              className={`p-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                                 ws.status === 'SUSPENDED'
                                   ? 'bg-emerald-950 text-emerald-300 hover:bg-emerald-900'
                                   : 'bg-stone-800 text-stone-400 hover:text-rose-400 hover:bg-stone-700'
@@ -573,11 +645,32 @@ export const MasterAdminPage: React.FC<MasterAdminPageProps> = ({
         onClose={() => setIsModalOpen(false)}
         onSuccess={(details) => {
           loadWorkspaces();
+          loadAuditLogs();
           setStatusMessage({
             text: `Workspace "${details.workspace.workspaceName}" berjaya didaftarkan. Pautan akses: ${details.accessUrl}`,
             type: 'success',
           });
         }}
+      />
+
+      {/* Reset Client PIN Confirmation Modal */}
+      <ResetPinConfirmModal
+        isOpen={Boolean(resetPinWorkspace)}
+        workspace={resetPinWorkspace}
+        onClose={() => setResetPinWorkspace(null)}
+        onSuccess={(msg) => {
+          setStatusMessage({ text: msg, type: 'success' });
+          loadAuditLogs();
+        }}
+      />
+
+      {/* Security Audit Logs Modal */}
+      <AuditLogsModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        logs={auditLogs}
+        onRefresh={loadAuditLogs}
+        loading={loadingAuditLogs}
       />
     </div>
   );
