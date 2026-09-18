@@ -24,6 +24,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { MasterAdminPage } from './pages/MasterAdminPage';
 import { parseRoute, pushRoute } from './services/urlRouter';
 import { WorkspaceService } from './services/workspaceService';
+import { updatePWAManifest } from './services/pwaManifestService';
 import type { Workspace } from './types/workspace';
 import {
   AlertOctagon,
@@ -176,7 +177,7 @@ function MainAppContent() {
     return unsub;
   }, [currentWorkspace]);
 
-  // Sync document title and store branding to active workspace
+  // Sync document title, store branding, and PWA manifest to active workspace
   useEffect(() => {
     if (currentWorkspace) {
       document.title = `${currentWorkspace.workspaceName} — NiagaPOS`;
@@ -186,8 +187,16 @@ function MainAppContent() {
           code: currentWorkspace.workspaceSlug.toUpperCase(),
         });
       }
+      updatePWAManifest({
+        workspaceSlug: currentWorkspace.workspaceSlug,
+        workspaceName: currentWorkspace.workspaceName,
+      });
     } else if (route.isMasterAdmin) {
       document.title = 'Konsol Master Admin — NiagaPOS V2';
+      updatePWAManifest({
+        workspaceSlug: null,
+        workspaceName: 'Master Admin',
+      });
     } else {
       document.title = 'NiagaPOS';
       if (store.name !== 'NiagaPOS') {
@@ -196,8 +205,12 @@ function MainAppContent() {
           code: 'NP-01',
         });
       }
+      updatePWAManifest({
+        workspaceSlug: route.workspaceSlug,
+        workspaceName: null,
+      });
     }
-  }, [currentWorkspace, route.isMasterAdmin, store.name, updateStoreDetails]);
+  }, [currentWorkspace, route.isMasterAdmin, route.workspaceSlug, store.name, updateStoreDetails]);
 
   const handleNavigate = (page: ActivePage) => {
     setActivePage(page);

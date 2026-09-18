@@ -42,6 +42,105 @@ async function startServer() {
   });
 
   // ----------------------------------------------------
+  // DYNAMIC PWA MANIFEST (Workspace-Specific)
+  // ----------------------------------------------------
+  const handleDynamicManifest = (req: Request, res: Response) => {
+    let slug = req.params.slug || (req.query.slug as string) || (req.query.workspace as string);
+    let name = (req.query.name as string) || '';
+
+    if (!slug && req.headers.referer) {
+      try {
+        const refUrl = new URL(req.headers.referer);
+        const segs = refUrl.pathname.split('/').map((s) => s.trim()).filter(Boolean);
+        const RESERVED = ['admin', 'api', 'assets', 'login', 'pos', 'settings', 'inventory', 'reports', 'customers', 'suppliers', 'purchases', 'dashboard', 'setup', 'sw.js', 'konsol', 'klien'];
+        if (segs.length > 0 && !segs[0].includes('.') && !RESERVED.includes(segs[0].toLowerCase())) {
+          slug = segs[0];
+        }
+      } catch {}
+    }
+
+    const cleanSlug = slug?.trim()?.toLowerCase();
+    const isWorkspace = Boolean(cleanSlug && !['admin', 'api', 'assets', 'login', 'pos', 'settings', 'inventory', 'reports', 'dashboard', 'setup', 'sw.js'].includes(cleanSlug));
+
+    const displayName = isWorkspace
+      ? (name || cleanSlug!.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+      : 'NiagaPOS';
+
+    const manifest = {
+      id: isWorkspace ? `/${cleanSlug}` : '/',
+      name: isWorkspace ? `${displayName} — NiagaPOS` : 'NiagaPOS',
+      short_name: displayName,
+      description: isWorkspace
+        ? `NiagaPOS - Sistem POS & Pengurusan Inventori untuk ${displayName}`
+        : 'NiagaPOS - Sistem POS & Pengurusan Inventori Runcit',
+      start_url: isWorkspace ? `/${cleanSlug}` : '/',
+      scope: '/',
+      display: 'standalone',
+      orientation: 'any',
+      background_color: '#082f63',
+      theme_color: '#082f63',
+      icons: [
+        {
+          src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/android-chrome-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/android-chrome-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/web-app-manifest-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+        {
+          src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/web-app-manifest-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+        {
+          src: '/android-chrome-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: '/android-chrome-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: '/web-app-manifest-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+        {
+          src: '/web-app-manifest-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+      ],
+    };
+
+    res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.json(manifest);
+  };
+
+  app.get('/site.webmanifest', handleDynamicManifest);
+  app.get('/manifest.json', handleDynamicManifest);
+  app.get('/api/manifest/:slug?', handleDynamicManifest);
+
+  // ----------------------------------------------------
   // CLIENT WORKSPACE AUTHENTICATION
   // ----------------------------------------------------
 

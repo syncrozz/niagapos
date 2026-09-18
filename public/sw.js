@@ -1,5 +1,114 @@
-// NiagaPOS Service Worker (Network-First Strategy with Cache Invalidation)
-const CACHE_NAME = 'niagapos-pwa-v3.0';
+// NiagaPOS Service Worker (Network-First Strategy with Dynamic Workspace Manifest)
+const CACHE_NAME = 'niagapos-pwa-v4.0';
+
+let activeWorkspaceSlug = null;
+let activeWorkspaceName = null;
+
+const RESERVED_ROUTES = [
+  'admin',
+  'client',
+  'clients',
+  'klien',
+  'konsol',
+  'konsol-klien',
+  'master-admin',
+  'workspace-admin',
+  'login',
+  'setup',
+  'settings',
+  'products',
+  'inventory',
+  'pos',
+  'sales',
+  'purchases',
+  'suppliers',
+  'customers',
+  'reports',
+  'dashboard',
+  'api',
+  'assets',
+  'sw.js',
+  'site.webmanifest',
+  'manifest.json',
+  'favicon.ico',
+  'favicon.svg',
+  'index.html',
+];
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SET_PWA_WORKSPACE') {
+    activeWorkspaceSlug = event.data.slug || null;
+    activeWorkspaceName = event.data.name || null;
+  }
+});
+
+const MANIFEST_ICONS = [
+  {
+    src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/android-chrome-192x192.png',
+    sizes: '192x192',
+    type: 'image/png',
+    purpose: 'any',
+  },
+  {
+    src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/android-chrome-512x512.png',
+    sizes: '512x512',
+    type: 'image/png',
+    purpose: 'any',
+  },
+  {
+    src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/web-app-manifest-192x192.png',
+    sizes: '192x192',
+    type: 'image/png',
+    purpose: 'maskable',
+  },
+  {
+    src: 'https://raw.githubusercontent.com/syncrozz/syncrozz-assets/main/logo/NiagaPOS/web-app-manifest-512x512.png',
+    sizes: '512x512',
+    type: 'image/png',
+    purpose: 'maskable',
+  },
+  {
+    src: '/android-chrome-192x192.png',
+    sizes: '192x192',
+    type: 'image/png',
+    purpose: 'any',
+  },
+  {
+    src: '/android-chrome-512x512.png',
+    sizes: '512x512',
+    type: 'image/png',
+    purpose: 'any',
+  },
+  {
+    src: '/web-app-manifest-192x192.png',
+    sizes: '192x192',
+    type: 'image/png',
+    purpose: 'maskable',
+  },
+  {
+    src: '/web-app-manifest-512x512.png',
+    sizes: '512x512',
+    type: 'image/png',
+    purpose: 'maskable',
+  },
+];
+
+function generateWorkspaceManifest(slug, name) {
+  const cleanName = name || slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+  return {
+    id: `/${slug}`,
+    name: `${cleanName} — NiagaPOS`,
+    short_name: cleanName,
+    description: `NiagaPOS - Sistem POS & Pengurusan Inventori untuk ${cleanName}`,
+    start_url: `/${slug}`,
+    scope: '/',
+    display: 'standalone',
+    orientation: 'any',
+    background_color: '#082f63',
+    theme_color: '#082f63',
+    icons: MANIFEST_ICONS,
+  };
+}
 
 const ASSETS_TO_PRECACHE = [
   '/',
@@ -51,6 +160,55 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // 1. Dynamic PWA Manifest Interception
+  const isManifestRequest =
+    url.pathname === '/site.webmanifest' ||
+    url.pathname === '/manifest.json' ||
+    url.pathname.startsWith('/api/manifest/') ||
+    url.pathname.endsWith('.webmanifest');
+
+  if (isManifestRequest) {
+    let slug = url.searchParams.get('slug') || url.searchParams.get('workspace');
+    let name = url.searchParams.get('name');
+
+    if (!slug && url.pathname.startsWith('/api/manifest/')) {
+      slug = url.pathname.replace('/api/manifest/', '').split('/')[0];
+    }
+
+    // Check Referrer header (e.g. user visiting https://niagapos.syncrozz.com/kedai-mama)
+    if (!slug && event.request.referrer) {
+      try {
+        const refUrl = new URL(event.request.referrer);
+        const segs = refUrl.pathname.split('/').map((s) => s.trim()).filter(Boolean);
+        if (segs.length > 0) {
+          const cand = segs[0].toLowerCase();
+          if (!cand.includes('.') && !RESERVED_ROUTES.includes(cand)) {
+            slug = cand;
+          }
+        }
+      } catch {}
+    }
+
+    // Fallback to active workspace stored via message
+    if (!slug && activeWorkspaceSlug) {
+      slug = activeWorkspaceSlug;
+      name = name || activeWorkspaceName;
+    }
+
+    if (slug && !RESERVED_ROUTES.includes(slug.toLowerCase())) {
+      const manifest = generateWorkspaceManifest(slug, name);
+      event.respondWith(
+        new Response(JSON.stringify(manifest, null, 2), {
+          headers: {
+            'Content-Type': 'application/manifest+json; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
+        })
+      );
+      return;
+    }
+  }
 
   // For app navigation and local scripts, use Network-First to ensure instant freshness
   const isNavigation = event.request.mode === 'navigate';
